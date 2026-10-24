@@ -1,0 +1,19 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WarOfReciliance", "WarOfReciliance.csproj", "{DF0F2451-3822-4A23-8F20-8D877FDBE29D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+	Debug|Any CPU = Debug|Any CPU
+	ExportDebug|Any CPU = ExportDebug|Any CPU
+	ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DF0F2451-3822-4A23-8F20-8D877FDBE29D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DF0F2451-3822-4A23-8F20-8D877FDBE29D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DF0F2451-3822-4A23-8F20-8D877FDBE29D}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{DF0F2451-3822-4A23-8F20-8D877FDBE29D}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{DF0F2451-3822-4A23-8F20-8D877FDBE29D}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{DF0F2451-3822-4A23-8F20-8D877FDBE29D}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+EndGlobal
