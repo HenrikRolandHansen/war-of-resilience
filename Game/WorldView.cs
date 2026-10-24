@@ -5,13 +5,16 @@ using WarOfResilience.Sim.World;
 namespace WarOfResilience.Game;
 
 /// <summary>
-/// Draws cities and the border. Markers grow with the camera distance so they stay readable
+/// Draws cities (buildings up close, markers from afar) and the border. Markers grow with the camera distance so they stay readable
 /// from street level to the whole 1200 km map. Only reads from Sim.
 /// </summary>
 public partial class WorldView : Node3D
 {
 	/// <summary>Marker height as a fraction of the camera distance.</summary>
 	private const float MarkerScale = 0.03f;
+
+	/// <summary>Markers are hidden closer than this, where the buildings speak for themselves.</summary>
+	private const float MarkersHiddenBelow = 60_000f;
 
 	private static readonly Color[] CountryColors =
 	{
@@ -45,6 +48,11 @@ public partial class WorldView : Node3D
 				Position = new Vector3(x, terrain.HeightAt(x, z), z),
 			};
 			AddChild(root);
+
+			// Buildings use world coordinates, so they hang off this view rather than the marker root.
+			var buildings = CityBuilder.Build(city, terrain);
+			buildings.Name = $"{root.Name}_Buildings";
+			AddChild(buildings);
 
 			var color = ColorOf(city.CountryId);
 			var pillar = new MeshInstance3D
@@ -93,12 +101,14 @@ public partial class WorldView : Node3D
 		}
 
 		float baseHeight = _camera.Distance * MarkerScale;
+		bool showPillars = _camera.Distance >= MarkersHiddenBelow;
 		foreach (var marker in _markers)
 		{
 			float height = baseHeight * marker.SizeFactor;
+			marker.Pillar.Visible = showPillars;
 			marker.Pillar.Scale = new Vector3(height, height, height);
 			marker.Pillar.Position = new Vector3(0, height / 2, 0);
-			marker.Label.Position = new Vector3(0, height * 1.15f, 0);
+			marker.Label.Position = new Vector3(0, showPillars ? height * 1.15f : 400f, 0);
 		}
 	}
 

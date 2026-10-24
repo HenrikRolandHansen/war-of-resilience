@@ -68,6 +68,16 @@ public partial class RtsCamera : Node3D
 		Position = new Vector3(center.X, groundHeight(center.X, center.Y), center.Y);
 	}
 
+	/// <summary>Moves the camera straight to a point on the map at the given distance, without smoothing.</summary>
+	public void JumpTo(float x, float z, float distance)
+	{
+		_distance = _targetDistance = Mathf.Clamp(distance, MinDistance, MaxDistance);
+		_zoomAnchor = null;
+		Position = new Vector3(x, _groundHeight(x, z), z);
+		Pan(Vector2.Zero);
+		UpdateCameraTransform();
+	}
+
 	public override void _UnhandledInput(InputEvent @event)
 	{
 		switch (@event)
