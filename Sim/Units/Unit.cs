@@ -41,6 +41,11 @@ public sealed class Unit
 
 	public int HitPoints { get; internal set; }
 
+	public bool IsAlive => HitPoints > 0;
+
+	/// <summary>What a kamikaze unit is flying at, or null.</summary>
+	public AttackTarget? Target { get; internal set; }
+
 	/// <summary>Where the unit is heading, or null when it has arrived or was stopped.</summary>
 	public (Fixed X, Fixed Z)? Destination { get; internal set; }
 

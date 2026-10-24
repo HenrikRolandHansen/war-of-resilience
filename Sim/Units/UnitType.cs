@@ -29,6 +29,11 @@ public sealed record UnitType
 
 	public int Cost { get; init; }
 
+	/// <summary>Damage done when a kamikaze unit hits its target (it is destroyed doing so). 0 = cannot attack.</summary>
+	public int AttackDamage { get; init; }
+
+	public bool CanAttack => AttackDamage > 0;
+
 	/// <summary>Index in the catalog; used in the checksum instead of the string id.</summary>
 	public int Index { get; init; }
 }

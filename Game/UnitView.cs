@@ -23,12 +23,17 @@ public partial class UnitView : Node3D
 	private readonly List<UnitVisual> _visuals = new();
 	private readonly HashSet<int> _selected = new();
 	private UnitManager? _units;
+	private Vision? _vision;
+	private int _playerId;
 	private RtsCamera? _camera;
 	private float _alpha = 1;
 
-	public void Build(UnitManager units, RtsCamera camera)
+	/// <param name="vision">Enemy units are only drawn while <paramref name="playerId"/> can see them.</param>
+	public void Build(UnitManager units, Vision vision, int playerId, RtsCamera camera)
 	{
 		_units = units;
+		_vision = vision;
+		_playerId = playerId;
 		_camera = camera;
 		foreach (var unit in units.Units)
 		{
@@ -79,6 +84,22 @@ public partial class UnitView : Node3D
 		foreach (var visual in _visuals)
 		{
 			var unit = visual.Unit;
+			if (!unit.IsAlive)
+			{
+				if (visual.Root.Visible)
+				{
+					// Just died: a kamikaze hit or being hit. Blow up where it was last drawn.
+					visual.Root.Visible = false;
+					visual.Ring.Visible = false;
+					_selected.Remove(unit.Id);
+					var explosion = new Explosion(Mathf.Max(40f, distance * 0.02f)) { Position = visual.Root.Position };
+					AddChild(explosion);
+				}
+
+				continue;
+			}
+
+			visual.Root.Visible = _vision == null || _vision.CanSee(_playerId, unit);
 			visual.Root.Position = visual.Previous.Lerp(SimPosition(unit), _alpha);
 			if (unit.FacingX != Fixed.Zero || unit.FacingZ != Fixed.Zero)
 			{

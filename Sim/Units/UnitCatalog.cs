@@ -61,6 +61,7 @@ public sealed class UnitCatalog
 				HitPoints = entry.HitPoints,
 				SightMetres = entry.SightMetres,
 				Cost = entry.Cost,
+				AttackDamage = entry.AttackDamage,
 				Index = types.Count,
 			});
 		}
@@ -105,5 +106,7 @@ public sealed class UnitCatalog
 		public int SightMetres { get; set; }
 
 		public int Cost { get; set; }
+
+		public int AttackDamage { get; set; }
 	}
 }

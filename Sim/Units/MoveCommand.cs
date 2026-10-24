@@ -27,7 +27,7 @@ public sealed class MoveCommand : ICommand
 	public void Apply(SimContext context)
 	{
 		var manager = context.GetSystem<UnitManager>();
-		var units = UnitIds.Select(manager.Find).Where(u => u != null && u.OwnerId == PlayerId).Cast<Unit>().ToList();
+		var units = UnitIds.Select(manager.Find).Where(u => u != null && u.OwnerId == PlayerId && u.IsAlive).Cast<Unit>().ToList();
 		if (units.Count == 0)
 		{
 			return;
@@ -43,6 +43,7 @@ public sealed class MoveCommand : ICommand
 			var offsetX = (Fixed.FromInt(i % columns) - half) * UnitManager.FormationSpacing;
 			var offsetZ = (Fixed.FromInt(i / columns) - half) * UnitManager.FormationSpacing;
 			units[i].Destination = (x + offsetX, z + offsetZ);
+			units[i].Target = null;
 		}
 	}
 }
