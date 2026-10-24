@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="WarOfReciliance"
+config/name="War of Resilience"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -21,7 +21,7 @@ window/stretch/aspect="expand"
 
 [dotnet]
 
-project/assembly_name="WarOfReciliance"
+project/assembly_name="WarOfResilience"
 
 [physics]
 
