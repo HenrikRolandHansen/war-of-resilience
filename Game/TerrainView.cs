@@ -1,3 +1,4 @@
+using System;
 using Godot;
 using WarOfResilience.Sim.World;
 
@@ -15,12 +16,16 @@ public partial class TerrainView : Node3D
 	private static readonly Color Rock = new(0.45f, 0.42f, 0.38f);
 	private static readonly Color Snow = new(0.92f, 0.93f, 0.95f);
 
+	/// <summary>How strongly a country's colour tints its land (0 = none, 1 = solid).</summary>
+	private const float TerritoryTint = 0.12f;
+
 	/// <summary>Grid cells per side of one ground mesh chunk.</summary>
 	private const int ChunkCells = 100;
 
 	private Terrain? _terrain;
 
-	public void Build(Terrain terrain)
+	/// <param name="ownerAtPoint">Optional country owner per grid point (-1 for none); owned land is tinted in the country's colour.</param>
+	public void Build(Terrain terrain, Func<int, int, int>? ownerAtPoint = null)
 	{
 		_terrain = terrain;
 
@@ -35,7 +40,7 @@ public partial class TerrainView : Node3D
 			VertexColorIsSrgb = true,
 			Roughness = 0.95f,
 		};
-		BuildGround(terrain, groundMaterial);
+		BuildGround(terrain, groundMaterial, ownerAtPoint);
 
 		float sizeX = (float)terrain.SizeX.ToDouble();
 		float sizeZ = (float)terrain.SizeZ.ToDouble();
@@ -78,7 +83,7 @@ public partial class TerrainView : Node3D
 	/// Splits the ground into square chunks so Godot can skip the ones outside the camera's view.
 	/// Normals and colours come from the whole height grid, so chunk edges line up seamlessly.
 	/// </summary>
-	private void BuildGround(Terrain terrain, Material material)
+	private void BuildGround(Terrain terrain, Material material, Func<int, int, int>? ownerAtPoint)
 	{
 		int width = terrain.Width;
 		int depth = terrain.Depth;
@@ -109,7 +114,7 @@ public partial class TerrainView : Node3D
 				ground.AddChild(new MeshInstance3D
 				{
 					Name = $"Chunk_{chunkX / ChunkCells}_{chunkZ / ChunkCells}",
-					Mesh = BuildChunkMesh(heights, width, depth, cell, sea, maxHeight, chunkX, chunkZ, cellsX, cellsZ),
+					Mesh = BuildChunkMesh(heights, width, depth, cell, sea, maxHeight, chunkX, chunkZ, cellsX, cellsZ, ownerAtPoint),
 					MaterialOverride = material,
 				});
 			}
@@ -118,7 +123,7 @@ public partial class TerrainView : Node3D
 
 	private static ArrayMesh BuildChunkMesh(
 		float[] heights, int width, int depth, float cell, float sea, float maxHeight,
-		int startX, int startZ, int cellsX, int cellsZ)
+		int startX, int startZ, int cellsX, int cellsZ, Func<int, int, int>? ownerAtPoint)
 	{
 		int pointsX = cellsX + 1;
 		int pointsZ = cellsZ + 1;
@@ -144,7 +149,14 @@ public partial class TerrainView : Node3D
 				var normal = new Vector3(left - right, 2 * cell, back - front).Normalized();
 				normals[i] = normal;
 
-				colors[i] = ColorFor(h, sea, maxHeight, normal.Y);
+				var color = ColorFor(h, sea, maxHeight, normal.Y);
+				int owner = ownerAtPoint?.Invoke(x, z) ?? -1;
+				if (owner >= 0)
+				{
+					color = color.Lerp(WorldView.ColorOf(owner), TerritoryTint);
+				}
+
+				colors[i] = color;
 			}
 		}
 

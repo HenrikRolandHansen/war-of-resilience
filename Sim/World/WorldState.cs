@@ -17,19 +17,19 @@ public sealed class WorldState : ISimSystem
 	private readonly List<Country> _countries;
 	private readonly List<City> _cities;
 
-	public WorldState(IEnumerable<Country> countries, IEnumerable<City> cities, Fixed borderX)
+	public WorldState(IEnumerable<Country> countries, IEnumerable<City> cities, Territory territory)
 	{
 		_countries = countries.OrderBy(c => c.Id).ToList();
 		_cities = cities.OrderBy(c => c.Id).ToList();
-		BorderX = borderX;
+		Territory = territory;
 	}
 
 	public IReadOnlyList<Country> Countries => _countries;
 
 	public IReadOnlyList<City> Cities => _cities;
 
-	/// <summary>The border runs north-south at this X. Country 0 is west of it, country 1 east.</summary>
-	public Fixed BorderX { get; }
+	/// <summary>Which country owns each piece of land.</summary>
+	public Territory Territory { get; }
 
 	public Country GetCountry(int id) => _countries.First(c => c.Id == id);
 
@@ -67,7 +67,7 @@ public sealed class WorldState : ISimSystem
 
 	public void AddToChecksum(ref Checksum checksum)
 	{
-		checksum.Add(BorderX);
+		Territory.AddToChecksum(ref checksum);
 		foreach (var country in _countries)
 		{
 			checksum.Add(country.Id);
