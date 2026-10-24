@@ -15,6 +15,7 @@ public partial class TerrainView : Node3D
 	private static readonly Color Forest = new(0.18f, 0.33f, 0.16f);
 	private static readonly Color Rock = new(0.45f, 0.42f, 0.38f);
 	private static readonly Color Snow = new(0.92f, 0.93f, 0.95f);
+	private static readonly Color Urban = new(0.42f, 0.42f, 0.40f);
 
 	/// <summary>How strongly a country's colour tints its land (0 = none, 1 = solid).</summary>
 	private const float TerritoryTint = 0.12f;
@@ -25,7 +26,8 @@ public partial class TerrainView : Node3D
 	private Terrain? _terrain;
 
 	/// <param name="ownerAtPoint">Optional country owner per grid point (-1 for none); owned land is tinted in the country's colour.</param>
-	public void Build(Terrain terrain, Func<int, int, int>? ownerAtPoint = null)
+	/// <param name="urbanAtPoint">Optional 0..1 per grid point; built-up land is greyed toward asphalt.</param>
+	public void Build(Terrain terrain, Func<int, int, int>? ownerAtPoint = null, Func<int, int, float>? urbanAtPoint = null)
 	{
 		_terrain = terrain;
 
@@ -40,7 +42,7 @@ public partial class TerrainView : Node3D
 			VertexColorIsSrgb = true,
 			Roughness = 0.95f,
 		};
-		BuildGround(terrain, groundMaterial, ownerAtPoint);
+		BuildGround(terrain, groundMaterial, ownerAtPoint, urbanAtPoint);
 
 		float sizeX = (float)terrain.SizeX.ToDouble();
 		float sizeZ = (float)terrain.SizeZ.ToDouble();
@@ -58,6 +60,9 @@ public partial class TerrainView : Node3D
 			},
 		});
 	}
+
+	/// <summary>Height of the water surface in metres.</summary>
+	public float SeaLevel => _terrain == null ? 0 : (float)_terrain.SeaLevel.ToDouble();
 
 	/// <summary>Map size along X in metres.</summary>
 	public float SizeX => _terrain == null ? 0 : (float)_terrain.SizeX.ToDouble();
@@ -83,7 +88,7 @@ public partial class TerrainView : Node3D
 	/// Splits the ground into square chunks so Godot can skip the ones outside the camera's view.
 	/// Normals and colours come from the whole height grid, so chunk edges line up seamlessly.
 	/// </summary>
-	private void BuildGround(Terrain terrain, Material material, Func<int, int, int>? ownerAtPoint)
+	private void BuildGround(Terrain terrain, Material material, Func<int, int, int>? ownerAtPoint, Func<int, int, float>? urbanAtPoint)
 	{
 		int width = terrain.Width;
 		int depth = terrain.Depth;
@@ -114,7 +119,7 @@ public partial class TerrainView : Node3D
 				ground.AddChild(new MeshInstance3D
 				{
 					Name = $"Chunk_{chunkX / ChunkCells}_{chunkZ / ChunkCells}",
-					Mesh = BuildChunkMesh(heights, width, depth, cell, sea, maxHeight, chunkX, chunkZ, cellsX, cellsZ, ownerAtPoint),
+					Mesh = BuildChunkMesh(heights, width, depth, cell, sea, maxHeight, chunkX, chunkZ, cellsX, cellsZ, ownerAtPoint, urbanAtPoint),
 					MaterialOverride = material,
 				});
 			}
@@ -123,7 +128,7 @@ public partial class TerrainView : Node3D
 
 	private static ArrayMesh BuildChunkMesh(
 		float[] heights, int width, int depth, float cell, float sea, float maxHeight,
-		int startX, int startZ, int cellsX, int cellsZ, Func<int, int, int>? ownerAtPoint)
+		int startX, int startZ, int cellsX, int cellsZ, Func<int, int, int>? ownerAtPoint, Func<int, int, float>? urbanAtPoint)
 	{
 		int pointsX = cellsX + 1;
 		int pointsZ = cellsZ + 1;
@@ -154,6 +159,12 @@ public partial class TerrainView : Node3D
 				if (owner >= 0)
 				{
 					color = color.Lerp(WorldView.ColorOf(owner), TerritoryTint);
+				}
+
+				float urban = h > sea + 1.0f ? urbanAtPoint?.Invoke(x, z) ?? 0 : 0;
+				if (urban > 0)
+				{
+					color = color.Lerp(Urban, urban * 0.75f);
 				}
 
 				colors[i] = color;

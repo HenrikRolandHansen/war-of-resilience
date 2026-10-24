@@ -95,7 +95,7 @@ public static class WorldGenerator
 			}
 
 			cities.Add(new City(cities.Count, CityNames[countryId][0], countryId, site.Value.X, site.Value.Z,
-				settings.CapitalPopulationThousands, isCapital: true, morale: 75) { TargetMorale = 80 });
+				settings.CapitalPopulationThousands, isCapital: true, morale: 75) { BaseMorale = 80, TargetMorale = 80 });
 		}
 
 		var territory = TerritoryGenerator.Generate(terrain, cities);

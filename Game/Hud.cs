@@ -2,12 +2,13 @@ using System.Linq;
 using System.Text;
 using Godot;
 using WarOfResilience.Sim.Core;
+using WarOfResilience.Sim.Grid;
 using WarOfResilience.Sim.World;
 
 namespace WarOfResilience.Game;
 
 /// <summary>
-/// Top-left panel with game time and each country's money, income and average morale.
+/// Top-left panel with game time and each country's money, income, average morale and power.
 /// </summary>
 public partial class Hud : CanvasLayer
 {
@@ -15,6 +16,7 @@ public partial class Hud : CanvasLayer
 
 	private Simulation? _simulation;
 	private WorldState? _world;
+	private PowerGrid? _grid;
 	private Label _label = null!;
 	private double _sinceRefresh = RefreshSeconds;
 
@@ -40,10 +42,11 @@ public partial class Hud : CanvasLayer
 		panel.AddChild(_label);
 	}
 
-	public void Setup(Simulation simulation, WorldState world)
+	public void Setup(Simulation simulation, WorldState world, PowerGrid grid)
 	{
 		_simulation = simulation;
 		_world = world;
+		_grid = grid;
 		Refresh();
 	}
 
@@ -59,7 +62,7 @@ public partial class Hud : CanvasLayer
 
 	private void Refresh()
 	{
-		if (_simulation == null || _world == null)
+		if (_simulation == null || _world == null || _grid == null)
 		{
 			return;
 		}
@@ -74,7 +77,10 @@ public partial class Hud : CanvasLayer
 			double money = country.Money.ToDouble();
 			double incomePerSecond = country.IncomeLastTick.ToDouble() * Simulation.TicksPerSecond;
 			double morale = cities.Count == 0 ? 0 : cities.Average(c => c.Morale);
+			var power = _grid.PowerOf(country.Id);
+			int powered = power.DemandMW == 0 ? 100 : power.SuppliedMW * 100 / power.DemandMW;
 			text.Append($"\n{country.Name,-8}  {money,9:N0} cr   +{incomePerSecond:N0}/s   morale {morale:0}%   {cities.Count} cities");
+			text.Append($"\n          power {power.ProducedMW:N0} MW made, {power.DemandMW:N0} MW needed, {powered}% supplied");
 		}
 
 		_label.Text = text.ToString();

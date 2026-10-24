@@ -4,7 +4,7 @@ namespace WarOfResilience.Sim.World;
 
 /// <summary>
 /// Countries and their cities. Each tick every city pays income to its country, scaled by
-/// population and morale, and morale moves one step toward its target.
+/// population, morale and power, and morale moves one step toward its target.
 /// </summary>
 public sealed class WorldState : ISimSystem
 {
@@ -57,11 +57,15 @@ public sealed class WorldState : ISimSystem
 		}
 	}
 
+	/// <summary>
+	/// Income scales with population and morale. A city without power still earns half,
+	/// rising linearly to full income at 100 % power.
+	/// </summary>
 	public static Fixed IncomePerTick(City city)
 	{
 		// One division at the end keeps the result exact where possible.
-		long numerator = (long)city.PopulationThousands * city.Morale;
-		long denominator = (long)ThousandsPerCreditPerSecond * City.MaxMorale * Simulation.TicksPerSecond;
+		long numerator = (long)city.PopulationThousands * city.Morale * (100 + city.PowerPercent);
+		long denominator = (long)ThousandsPerCreditPerSecond * City.MaxMorale * Simulation.TicksPerSecond * 200;
 		return Fixed.FromRaw((numerator << Fixed.FractionBits) / denominator);
 	}
 
@@ -82,7 +86,9 @@ public sealed class WorldState : ISimSystem
 			checksum.Add(city.Z);
 			checksum.Add(city.PopulationThousands);
 			checksum.Add(city.Morale);
+			checksum.Add(city.BaseMorale);
 			checksum.Add(city.TargetMorale);
+			checksum.Add(city.PowerPercent);
 		}
 	}
 }
