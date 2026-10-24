@@ -67,6 +67,10 @@ public partial class Main : Node3D
 		fog.Setup(vision, LocalPlayerId, terrain, world.Territory);
 		terrainView.SetFog(fog.Texture);
 
+		var strategicMap = new StrategicMap { Name = "StrategicMap" };
+		AddChild(strategicMap);
+		strategicMap.Setup(_simulation, terrain, world, grid, units, vision, _unitView, selection, camera, LocalPlayerId);
+
 		GetNode<Hud>("Hud").Setup(_simulation, world, grid);
 		ApplyStartView(world, camera);
 

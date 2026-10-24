@@ -222,9 +222,9 @@ public partial class RtsCamera : Node3D
 
 	/// <summary>
 	/// Where the ray through a screen point meets the horizontal plane at the focus height.
-	/// Null if the ray points at or above the horizon.
+	/// Null if the ray points at or above the horizon. Cheap; good enough for outlines and panning.
 	/// </summary>
-	private Vector3? GroundPointUnder(Vector2 screenPosition)
+	public Vector3? GroundPointUnder(Vector2 screenPosition)
 	{
 		var origin = _camera.ProjectRayOrigin(screenPosition);
 		var direction = _camera.ProjectRayNormal(screenPosition);

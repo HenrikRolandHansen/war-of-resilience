@@ -175,6 +175,46 @@ public class CombatTests
 	}
 
 	[Fact]
+	public void Vision_RemembersWhereEnemiesWereLastSeen()
+	{
+		var game = NewGame();
+		var enemy = game.Units.Units.First(u => u.OwnerId == 1 && u.Type.Id == "recon_drone");
+		var city = game.World.CitiesOf(0).First();
+
+		// The enemy drone flies over our city, then home again into the fog.
+		game.Sim.Schedule(new MoveCommand(1, new[] { enemy.Id }, city.X, city.Z));
+		game.Sim.Step(FlightTicks(game));
+		var spotted = game.Vision.LastSeenBy(0)[enemy.Id];
+		Assert.Equal(game.Sim.Tick, spotted.Tick);
+
+		var home = game.World.CitiesOf(1).First(c => c.IsCapital);
+		game.Sim.Schedule(new MoveCommand(1, new[] { enemy.Id }, home.X, home.Z));
+		game.Sim.Step(FlightTicks(game));
+
+		Assert.False(game.Vision.CanSee(0, enemy));
+		var last = game.Vision.LastSeenBy(0)[enemy.Id];
+		Assert.True(last.Tick < game.Sim.Tick);
+		Assert.DoesNotContain(game.Units.Units.Where(u => u.OwnerId == 1 && u.Id != enemy.Id), u => game.Vision.LastSeenBy(0).ContainsKey(u.Id));
+	}
+
+	[Fact]
+	public void Vision_ForgetsUnitsSeenBeingDestroyed()
+	{
+		var game = NewGame();
+		var enemyJeep = game.Units.Units.First(u => u.OwnerId == 1 && u.Type.Id == "jeep");
+		var recon = game.Units.Units.First(u => u.OwnerId == 0 && u.Type.Id == "recon_drone");
+		game.Sim.Schedule(new MoveCommand(0, new[] { recon.Id }, enemyJeep.X, enemyJeep.Z));
+		game.Sim.Step(FlightTicks(game));
+		Assert.True(game.Vision.LastSeenBy(0).ContainsKey(enemyJeep.Id));
+
+		game.Sim.Schedule(new AttackCommand(0, new[] { Kamikazes(game, 0).First().Id }, AttackTarget.OnUnit(enemyJeep.Id)));
+		game.Sim.Step(FlightTicks(game));
+
+		Assert.False(enemyJeep.IsAlive);
+		Assert.False(game.Vision.LastSeenBy(0).ContainsKey(enemyJeep.Id));
+	}
+
+	[Fact]
 	public void SameOrders_GiveSameBattle()
 	{
 		ulong Run()
