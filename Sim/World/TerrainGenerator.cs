@@ -4,88 +4,98 @@ namespace WarOfResilience.Sim.World;
 
 /// <summary>
 /// Generates a landscape from a seed using layered value noise, computed entirely in fixed-point
-/// so every machine produces the same map.
+/// so every machine produces the same map. The default is a 1200 x 1200 km region with 1 km between height points.
 /// </summary>
 public static class TerrainGenerator
 {
 	public sealed record Settings
 	{
 		/// <summary>Grid points along X.</summary>
-		public int Width { get; init; } = 257;
+		public int Width { get; init; } = 1201;
 
 		/// <summary>Grid points along Z.</summary>
-		public int Depth { get; init; } = 257;
+		public int Depth { get; init; } = 1201;
 
 		/// <summary>Metres between grid points.</summary>
-		public Fixed CellSize { get; init; } = Fixed.FromInt(4);
+		public Fixed CellSize { get; init; } = Fixed.FromInt(1000);
 
 		/// <summary>Height of the highest possible peak in metres.</summary>
-		public Fixed MaxHeight { get; init; } = Fixed.FromInt(90);
+		public Fixed MaxHeight { get; init; } = Fixed.FromInt(2500);
 
 		/// <summary>Water level in metres.</summary>
-		public Fixed SeaLevel { get; init; } = Fixed.FromInt(12);
+		public Fixed SeaLevel { get; init; } = Fixed.FromInt(330);
 
 		/// <summary>Size of the largest landscape features, in grid cells.</summary>
-		public int FeatureSize { get; init; } = 96;
+		public int FeatureSize { get; init; } = 400;
 
 		/// <summary>Number of noise layers. More layers give finer detail.</summary>
-		public int Octaves { get; init; } = 5;
+		public int Octaves { get; init; } = 9;
 	}
 
 	public static Terrain Generate(ulong seed, Settings settings)
 	{
-		var heights = new Fixed[settings.Width * settings.Depth];
-
-		for (int z = 0; z < settings.Depth; z++)
-		{
-			for (int x = 0; x < settings.Width; x++)
-			{
-				var noise = LayeredNoise(seed, x, z, settings.FeatureSize, settings.Octaves);
-
-				// Squaring flattens lowlands and sharpens peaks, which reads more like real terrain.
-				heights[z * settings.Width + x] = noise * noise * settings.MaxHeight;
-			}
-		}
-
-		return new Terrain(settings.Width, settings.Depth, settings.CellSize, settings.SeaLevel, heights);
-	}
-
-	/// <summary>Sum of noise octaves, normalised to [0, 1).</summary>
-	private static Fixed LayeredNoise(ulong seed, int x, int z, int featureSize, int octaves)
-	{
-		var sum = Fixed.Zero;
+		int width = settings.Width;
+		int depth = settings.Depth;
+		var sum = new Fixed[width * depth];
 		var totalAmplitude = Fixed.Zero;
 		var amplitude = Fixed.One;
-		int spacing = featureSize;
+		int spacing = settings.FeatureSize;
 
-		for (int octave = 0; octave < octaves && spacing >= 1; octave++)
+		// Layered value noise: each octave halves the feature size and the amplitude.
+		for (int octave = 0; octave < settings.Octaves && spacing >= 1; octave++)
 		{
 			ulong octaveSeed = seed + (ulong)octave * 0x9E3779B97F4A7C15UL;
-			sum += ValueNoise(octaveSeed, x, z, spacing) * amplitude;
+			AddOctave(sum, width, depth, octaveSeed, spacing, amplitude);
 			totalAmplitude += amplitude;
 			amplitude *= Fixed.Half;
 			spacing /= 2;
 		}
 
-		return sum / totalAmplitude;
+		var heights = new Fixed[width * depth];
+		for (int i = 0; i < heights.Length; i++)
+		{
+			var noise = sum[i] / totalAmplitude;
+
+			// Squaring flattens lowlands and sharpens peaks, which reads more like real terrain.
+			heights[i] = noise * noise * settings.MaxHeight;
+		}
+
+		return new Terrain(width, depth, settings.CellSize, settings.SeaLevel, heights);
 	}
 
-	/// <summary>Smoothly interpolated random values on a lattice with the given spacing. Returns [0, 1).</summary>
-	private static Fixed ValueNoise(ulong seed, int x, int z, int spacing)
+	private static void AddOctave(Fixed[] sum, int width, int depth, ulong seed, int spacing, Fixed amplitude)
 	{
-		int cellX = FloorDiv(x, spacing);
-		int cellZ = FloorDiv(z, spacing);
-		var tx = SmoothStep(Fixed.FromRatio(x - cellX * spacing, spacing));
-		var tz = SmoothStep(Fixed.FromRatio(z - cellZ * spacing, spacing));
+		// Lattice values are cached per octave; computing them per point is far slower on big maps.
+		int latticeWidth = width / spacing + 2;
+		int latticeDepth = depth / spacing + 2;
+		var lattice = new Fixed[latticeWidth * latticeDepth];
+		for (int z = 0; z < latticeDepth; z++)
+		{
+			for (int x = 0; x < latticeWidth; x++)
+			{
+				lattice[z * latticeWidth + x] = LatticeValue(seed, x, z);
+			}
+		}
 
-		var v00 = LatticeValue(seed, cellX, cellZ);
-		var v10 = LatticeValue(seed, cellX + 1, cellZ);
-		var v01 = LatticeValue(seed, cellX, cellZ + 1);
-		var v11 = LatticeValue(seed, cellX + 1, cellZ + 1);
+		for (int z = 0; z < depth; z++)
+		{
+			int cellZ = z / spacing;
+			var tz = SmoothStep(Fixed.FromRatio(z - cellZ * spacing, spacing));
+			for (int x = 0; x < width; x++)
+			{
+				int cellX = x / spacing;
+				var tx = SmoothStep(Fixed.FromRatio(x - cellX * spacing, spacing));
 
-		var top = v00 + (v10 - v00) * tx;
-		var bottom = v01 + (v11 - v01) * tx;
-		return top + (bottom - top) * tz;
+				var v00 = lattice[cellZ * latticeWidth + cellX];
+				var v10 = lattice[cellZ * latticeWidth + cellX + 1];
+				var v01 = lattice[(cellZ + 1) * latticeWidth + cellX];
+				var v11 = lattice[(cellZ + 1) * latticeWidth + cellX + 1];
+
+				var top = v00 + (v10 - v00) * tx;
+				var bottom = v01 + (v11 - v01) * tx;
+				sum[z * width + x] += (top + (bottom - top) * tz) * amplitude;
+			}
+		}
 	}
 
 	private static Fixed LatticeValue(ulong seed, int x, int z)
@@ -102,11 +112,5 @@ public static class TerrainGenerator
 		var three = Fixed.FromInt(3);
 		var two = Fixed.FromInt(2);
 		return t * t * (three - two * t);
-	}
-
-	private static int FloorDiv(int a, int b)
-	{
-		int q = a / b;
-		return (a % b != 0 && (a < 0) != (b < 0)) ? q - 1 : q;
 	}
 }

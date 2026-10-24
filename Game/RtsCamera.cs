@@ -11,15 +11,15 @@ namespace WarOfResilience.Game;
 public partial class RtsCamera : Node3D
 {
 	[Export] public float PitchDegrees { get; set; } = 55f;
-	[Export] public float MinDistance { get; set; } = 30f;
-	[Export] public float MaxDistance { get; set; } = 500f;
-	[Export] public float StartDistance { get; set; } = 250f;
+	[Export] public float MinDistance { get; set; } = 200f;
+	[Export] public float MaxDistance { get; set; } = 1_500_000f;
+	[Export] public float StartDistance { get; set; } = 300_000f;
 
 	/// <summary>Pan speed in metres per second at a distance of 100 m; scales with zoom.</summary>
 	[Export] public float PanSpeed { get; set; } = 120f;
 
 	/// <summary>Fraction of the current distance each wheel notch zooms.</summary>
-	[Export] public float ZoomStep { get; set; } = 0.12f;
+	[Export] public float ZoomStep { get; set; } = 0.2f;
 
 	/// <summary>How quickly the camera catches up with the target zoom and height.</summary>
 	[Export] public float Smoothing { get; set; } = 10f;
@@ -140,11 +140,15 @@ public partial class RtsCamera : Node3D
 		float pitch = Mathf.DegToRad(PitchDegrees);
 		_camera.Position = new Vector3(0, Mathf.Sin(pitch) * _distance, Mathf.Cos(pitch) * _distance);
 		_camera.Rotation = new Vector3(-pitch, 0, 0);
+
+		// The map spans from metres to 1000+ km, so the clip planes follow the zoom to keep depth precision.
+		_camera.Near = Mathf.Max(0.5f, _distance * 0.002f);
+		_camera.Far = _distance * 5f;
 	}
 
 	private Camera3D CreateCamera()
 	{
-		var camera = new Camera3D { Name = "Camera3D", Far = 4000f };
+		var camera = new Camera3D { Name = "Camera3D" };
 		AddChild(camera);
 		return camera;
 	}

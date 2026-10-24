@@ -28,7 +28,7 @@ public partial class Main : Node3D
 		GetNode<RtsCamera>("RtsCamera").Configure(new Rect2(0, 0, sizeX, sizeZ), terrainView.HeightAt);
 
 		GD.Print($"War of Resilience started. Simulation runs at {Simulation.TicksPerSecond} ticks/s.");
-		GD.Print($"Map {sizeX:0} x {sizeZ:0} m, checksum {_simulation.ComputeChecksum():X16}.");
+		GD.Print($"Map {sizeX / 1000:0} x {sizeZ / 1000:0} km, checksum {_simulation.ComputeChecksum():X16}.");
 	}
 
 	public override void _Process(double delta)
