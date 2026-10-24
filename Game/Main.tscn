@@ -37,4 +37,3 @@ script = ExtResource("2_terrain")
 script = ExtResource("3_camera")
 
 [node name="Camera3D" type="Camera3D" parent="RtsCamera"]
-far = 4000.0

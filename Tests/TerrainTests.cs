@@ -10,7 +10,11 @@ public class TerrainTests
 	{
 		Width = 65,
 		Depth = 49,
+		CellSize = Fixed.FromInt(4),
+		MaxHeight = Fixed.FromInt(90),
+		SeaLevel = Fixed.FromInt(12),
 		FeatureSize = 32,
+		Octaves = 5,
 	};
 
 	[Fact]

@@ -15,6 +15,9 @@ public partial class TerrainView : Node3D
 	private static readonly Color Rock = new(0.45f, 0.42f, 0.38f);
 	private static readonly Color Snow = new(0.92f, 0.93f, 0.95f);
 
+	/// <summary>Grid cells per side of one ground mesh chunk.</summary>
+	private const int ChunkCells = 100;
+
 	private Terrain? _terrain;
 
 	public void Build(Terrain terrain)
@@ -26,17 +29,13 @@ public partial class TerrainView : Node3D
 			child.QueueFree();
 		}
 
-		AddChild(new MeshInstance3D
+		var groundMaterial = new StandardMaterial3D
 		{
-			Name = "Ground",
-			Mesh = BuildGroundMesh(terrain),
-			MaterialOverride = new StandardMaterial3D
-			{
-				VertexColorUseAsAlbedo = true,
-				VertexColorIsSrgb = true,
-				Roughness = 0.95f,
-			},
-		});
+			VertexColorUseAsAlbedo = true,
+			VertexColorIsSrgb = true,
+			Roughness = 0.95f,
+		};
+		BuildGround(terrain, groundMaterial);
 
 		float sizeX = (float)terrain.SizeX.ToDouble();
 		float sizeZ = (float)terrain.SizeZ.ToDouble();
@@ -69,7 +68,11 @@ public partial class TerrainView : Node3D
 		return Mathf.Max((float)h.ToDouble(), (float)_terrain.SeaLevel.ToDouble());
 	}
 
-	private static ArrayMesh BuildGroundMesh(Terrain terrain)
+	/// <summary>
+	/// Splits the ground into square chunks so Godot can skip the ones outside the camera's view.
+	/// Normals and colours come from the whole height grid, so chunk edges line up seamlessly.
+	/// </summary>
+	private void BuildGround(Terrain terrain, Material material)
 	{
 		int width = terrain.Width;
 		int depth = terrain.Depth;
@@ -88,18 +91,46 @@ public partial class TerrainView : Node3D
 			}
 		}
 
-		var vertices = new Vector3[width * depth];
-		var normals = new Vector3[width * depth];
-		var colors = new Color[width * depth];
-		for (int z = 0; z < depth; z++)
+		var ground = new Node3D { Name = "Ground" };
+		AddChild(ground);
+
+		for (int chunkZ = 0; chunkZ < depth - 1; chunkZ += ChunkCells)
 		{
-			for (int x = 0; x < width; x++)
+			for (int chunkX = 0; chunkX < width - 1; chunkX += ChunkCells)
 			{
-				int i = z * width + x;
-				float h = heights[i];
+				int cellsX = Mathf.Min(ChunkCells, width - 1 - chunkX);
+				int cellsZ = Mathf.Min(ChunkCells, depth - 1 - chunkZ);
+				ground.AddChild(new MeshInstance3D
+				{
+					Name = $"Chunk_{chunkX / ChunkCells}_{chunkZ / ChunkCells}",
+					Mesh = BuildChunkMesh(heights, width, depth, cell, sea, maxHeight, chunkX, chunkZ, cellsX, cellsZ),
+					MaterialOverride = material,
+				});
+			}
+		}
+	}
+
+	private static ArrayMesh BuildChunkMesh(
+		float[] heights, int width, int depth, float cell, float sea, float maxHeight,
+		int startX, int startZ, int cellsX, int cellsZ)
+	{
+		int pointsX = cellsX + 1;
+		int pointsZ = cellsZ + 1;
+		var vertices = new Vector3[pointsX * pointsZ];
+		var normals = new Vector3[pointsX * pointsZ];
+		var colors = new Color[pointsX * pointsZ];
+
+		for (int lz = 0; lz < pointsZ; lz++)
+		{
+			for (int lx = 0; lx < pointsX; lx++)
+			{
+				int x = startX + lx;
+				int z = startZ + lz;
+				int i = lz * pointsX + lx;
+				float h = heights[z * width + x];
 				vertices[i] = new Vector3(x * cell, h, z * cell);
 
-				// Central differences give smooth lighting across cells.
+				// Central differences give smooth lighting across cells and chunks.
 				float left = heights[z * width + Mathf.Max(x - 1, 0)];
 				float right = heights[z * width + Mathf.Min(x + 1, width - 1)];
 				float back = heights[Mathf.Max(z - 1, 0) * width + x];
@@ -111,15 +142,15 @@ public partial class TerrainView : Node3D
 			}
 		}
 
-		var indices = new int[(width - 1) * (depth - 1) * 6];
+		var indices = new int[cellsX * cellsZ * 6];
 		int k = 0;
-		for (int z = 0; z < depth - 1; z++)
+		for (int lz = 0; lz < cellsZ; lz++)
 		{
-			for (int x = 0; x < width - 1; x++)
+			for (int lx = 0; lx < cellsX; lx++)
 			{
-				int a = z * width + x;
+				int a = lz * pointsX + lx;
 				int b = a + 1;
-				int c = a + width;
+				int c = a + pointsX;
 				int d = c + 1;
 
 				// Clockwise when seen from above, which Godot treats as front-facing.
