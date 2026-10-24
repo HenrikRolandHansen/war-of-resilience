@@ -4,4 +4,12 @@
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Sim and Tests are their own projects; keep their sources out of the Godot assembly. -->
+    <Compile Remove="Sim/**" />
+    <Compile Remove="Tests/**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="Sim/WarOfResilience.Sim.csproj" />
+  </ItemGroup>
 </Project>
