@@ -17,14 +17,23 @@ public sealed class Vision : ISimSystem
 	private readonly UnitManager _units;
 	private readonly WorldState _world;
 	private readonly HashSet<int>[] _visible;
+	private readonly SortedDictionary<int, Sighting>[] _lastSeen;
+	private long _tick;
 
 	public Vision(UnitManager units, WorldState world)
 	{
 		_units = units;
 		_world = world;
 		_visible = world.Countries.Select(_ => new HashSet<int>()).ToArray();
+		_lastSeen = world.Countries.Select(_ => new SortedDictionary<int, Sighting>()).ToArray();
 		Recalculate();
 	}
+
+	/// <summary>
+	/// Where each enemy unit was last seen by a country, for units it cannot see right now or can.
+	/// Units seen being destroyed are forgotten; units that vanished into the fog are remembered.
+	/// </summary>
+	public IReadOnlyDictionary<int, Sighting> LastSeenBy(int countryId) => _lastSeen[countryId];
 
 	public bool CanSee(int countryId, Unit unit) =>
 		unit.OwnerId == countryId || (countryId >= 0 && countryId < _visible.Length && _visible[countryId].Contains(unit.Id));
@@ -46,7 +55,11 @@ public sealed class Vision : ISimSystem
 		}
 	}
 
-	public void Update(SimContext context) => Recalculate();
+	public void Update(SimContext context)
+	{
+		_tick = context.Tick;
+		Recalculate();
+	}
 
 	private void Recalculate()
 	{
@@ -61,6 +74,12 @@ public sealed class Vision : ISimSystem
 						|| sources.Any(s => Within(s.X - unit.X, s.Z - unit.Z, s.Radius))))
 				{
 					_visible[country].Add(unit.Id);
+					_lastSeen[country][unit.Id] = new Sighting(unit.X, unit.Z, _tick);
+				}
+				else if (!unit.IsAlive && _lastSeen[country].TryGetValue(unit.Id, out var sighting) && sighting.Tick == _tick - 1)
+				{
+					// It was in sight when it was destroyed, so the country knows it is gone.
+					_lastSeen[country].Remove(unit.Id);
 				}
 			}
 		}
@@ -86,5 +105,19 @@ public sealed class Vision : ISimSystem
 				checksum.Add(id);
 			}
 		}
+
+		foreach (var sightings in _lastSeen)
+		{
+			foreach (var (id, sighting) in sightings)
+			{
+				checksum.Add(id);
+				checksum.Add(sighting.X);
+				checksum.Add(sighting.Z);
+				checksum.Add(sighting.Tick);
+			}
+		}
 	}
+
+	/// <summary>Where and when an enemy unit was last seen.</summary>
+	public readonly record struct Sighting(Fixed X, Fixed Z, long Tick);
 }

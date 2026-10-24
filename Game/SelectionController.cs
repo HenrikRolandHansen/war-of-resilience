@@ -238,6 +238,9 @@ public partial class SelectionController : CanvasLayer
 
 	private static Fixed ToFixed(float metres) => Fixed.FromRaw((long)(metres * (1 << Fixed.FractionBits)));
 
+	/// <summary>Call after changing the selection from elsewhere, such as the strategic map.</summary>
+	public void RefreshInfo() => UpdateInfo();
+
 	private void UpdateInfo()
 	{
 		if (_units == null)
