@@ -8,7 +8,8 @@ namespace WarOfResilience.Game;
 /// </summary>
 public partial class Main : Node3D
 {
-	private readonly Simulation _simulation = new();
+	// Fixed seed for now; later it comes from the match setup.
+	private readonly Simulation _simulation = new(seed: 1);
 	private double _accumulator;
 
 	public override void _Ready()

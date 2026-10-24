@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>WarOfResilience.Sim</RootNamespace>
     <Optimize Condition=" '$(Configuration)' == 'ExportRelease' ">true</Optimize>
   </PropertyGroup>
