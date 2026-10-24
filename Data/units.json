@@ -30,7 +30,8 @@
       "cruiseAltitudeMetres": 150,
       "hitPoints": 20,
       "sightMetres": 1500,
-      "cost": 100
+      "cost": 100,
+      "attackDamage": 120
     }
   ]
 }

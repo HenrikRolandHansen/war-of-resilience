@@ -23,6 +23,7 @@ public partial class WorldView : Node3D
 	};
 
 	private readonly List<CityMarker> _markers = new();
+	private readonly Dictionary<Label3D, (City City, int Power)> _labels = new();
 	private RtsCamera? _camera;
 
 	public static Color ColorOf(int countryId) => CountryColors[countryId % CountryColors.Length];
@@ -82,6 +83,7 @@ public partial class WorldView : Node3D
 			root.AddChild(label);
 
 			_markers.Add(new CityMarker(pillar, label, city.IsCapital ? 1.6f : 1f));
+			_labels[label] = (city, -1);
 		}
 
 		AddChild(BuildBorder(world, terrain));
@@ -91,6 +93,29 @@ public partial class WorldView : Node3D
 	public override void _Process(double delta)
 	{
 		UpdateMarkerSizes();
+		UpdateLabels();
+	}
+
+	/// <summary>Shows blackouts in the city names, so damage to the grid is visible from anywhere.</summary>
+	private void UpdateLabels()
+	{
+		foreach (var (label, (city, shown)) in _labels)
+		{
+			if (city.PowerPercent == shown)
+			{
+				continue;
+			}
+
+			string name = city.IsCapital ? $"{city.Name.ToUpperInvariant()} (capital)" : city.Name;
+			label.Text = city.PowerPercent switch
+			{
+				100 => name,
+				0 => $"{name}\nBLACKOUT",
+				var p => $"{name}\n{p}% power",
+			};
+			label.Modulate = city.PowerPercent == 100 ? Colors.White : new Color(1f, 0.55f, 0.4f);
+			_labels[label] = (city, city.PowerPercent);
+		}
 	}
 
 	private void UpdateMarkerSizes()

@@ -8,8 +8,11 @@ namespace WarOfResilience.Sim.Grid;
 /// </summary>
 public sealed class Substation : GridNode
 {
+	/// <summary>One kamikaze drone hit on the transformers is enough.</summary>
+	public const int DefaultHitPoints = 100;
+
 	public Substation(int id, int countryId, Fixed x, Fixed z, int cityId)
-		: base(id, countryId, x, z)
+		: base(id, countryId, x, z, DefaultHitPoints)
 	{
 		CityId = cityId;
 	}

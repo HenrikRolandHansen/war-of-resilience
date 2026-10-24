@@ -165,6 +165,7 @@ public sealed class PowerGrid : ISimSystem
 			checksum.Add(node.X);
 			checksum.Add(node.Z);
 			checksum.Add(node.IsOperational ? 1 : 0);
+			checksum.Add(node.HitPoints);
 			if (node is PowerPlant plant)
 			{
 				checksum.Add((int)plant.Kind);
@@ -177,6 +178,7 @@ public sealed class PowerGrid : ISimSystem
 			checksum.Add(line.FromNodeId);
 			checksum.Add(line.ToNodeId);
 			checksum.Add(line.IsOperational ? 1 : 0);
+			checksum.Add(line.HitPoints);
 		}
 	}
 

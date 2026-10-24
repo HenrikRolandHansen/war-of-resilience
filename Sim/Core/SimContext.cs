@@ -17,6 +17,20 @@ public sealed class SimContext
 
 	public DeterministicRandom Random { get; }
 
+	/// <summary>The system of the given type, or null if the simulation has none.</summary>
+	public T? FindSystem<T>() where T : class, ISimSystem
+	{
+		foreach (var system in _systems)
+		{
+			if (system is T match)
+			{
+				return match;
+			}
+		}
+
+		return null;
+	}
+
 	public T GetSystem<T>() where T : ISimSystem
 	{
 		foreach (var system in _systems)

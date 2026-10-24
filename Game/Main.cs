@@ -33,11 +33,13 @@ public partial class Main : Node3D
 		var catalog = UnitCatalog.Parse(FileAccess.GetFileAsString("res://Data/units.json"));
 		var units = new UnitManager(terrain, catalog);
 		StartingForces.Place(units, world);
+		var vision = new Vision(units, world);
 
 		// The grid runs first so cities earn this tick's income with this tick's power.
 		_simulation.AddSystem(grid);
 		_simulation.AddSystem(world);
 		_simulation.AddSystem(units);
+		_simulation.AddSystem(vision);
 
 		var terrainView = GetNode<TerrainView>("TerrainView");
 		float cellSize = (float)terrain.CellSize.ToDouble();
@@ -55,10 +57,15 @@ public partial class Main : Node3D
 		gridView.Build(grid, terrainView, camera);
 		_unitView = new UnitView { Name = "UnitView" };
 		AddChild(_unitView);
-		_unitView.Build(units, camera);
+		_unitView.Build(units, vision, LocalPlayerId, camera);
 		var selection = new SelectionController { Name = "Selection" };
 		AddChild(selection);
-		selection.Setup(_simulation, units, _unitView, camera, LocalPlayerId);
+		selection.Setup(_simulation, units, grid, vision, _unitView, camera, LocalPlayerId);
+
+		var fog = new FogOfWar { Name = "FogOfWar" };
+		AddChild(fog);
+		fog.Setup(vision, LocalPlayerId, terrain, world.Territory);
+		terrainView.SetFog(fog.Texture);
 
 		GetNode<Hud>("Hud").Setup(_simulation, world, grid);
 		ApplyStartView(world, camera);

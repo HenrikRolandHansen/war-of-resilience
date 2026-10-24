@@ -18,16 +18,22 @@ public partial class GridView : Node3D
 	/// <summary>Markers are hidden closer than this, where the models are clear enough.</summary>
 	private const float MarkersHiddenBelow = 40_000f;
 
+	private const string MarkerName = "Marker";
+
 	private const float PylonSpacing = 400f;
 	private const float PylonHeight = 38f;
 	private const float WireLift = PylonHeight - 2f;
 
 	private static readonly Color Energized = new(1f, 0.82f, 0.25f);
 	private static readonly Color Dead = new(0.3f, 0.3f, 0.3f);
+	private static readonly Color Cut = new(0.55f, 0.08f, 0.05f);
+	private static readonly StandardMaterial3D Charred = new() { AlbedoColor = new Color(0.08f, 0.07f, 0.06f), Roughness = 1f };
 
 	private readonly List<(PowerLine Line, StandardMaterial3D Material)> _lines = new();
 	private readonly List<Marker> _markers = new();
 	private readonly List<Node3D> _rotors = new();
+	private readonly List<bool> _lineState = new();
+	private PowerGrid? _grid;
 	private RtsCamera? _camera;
 	private TerrainView? _terrain;
 
@@ -35,6 +41,7 @@ public partial class GridView : Node3D
 	{
 		_camera = camera;
 		_terrain = terrain;
+		_grid = grid;
 
 		foreach (var line in grid.Lines)
 		{
@@ -49,6 +56,7 @@ public partial class GridView : Node3D
 			};
 			AddChild(new MeshInstance3D { Name = $"Line_{line.Id}", Mesh = BuildWire(a, b), MaterialOverride = material });
 			_lines.Add((line, material));
+			_lineState.Add(line.IsOperational);
 			AddPylons(a, b);
 		}
 
@@ -94,12 +102,12 @@ public partial class GridView : Node3D
 					VisibilityRangeEnd = 450_000f,
 				};
 				root.AddChild(label);
-				_markers.Add(new Marker(root, AddMarker(root, color, diamond: true), label, 0.016f));
+				_markers.Add(new Marker(node, root, AddMarker(root, color, diamond: true), label, 0.016f));
 			}
 			else
 			{
 				BuildSubstation(root);
-				_markers.Add(new Marker(root, AddMarker(root, color.Lightened(0.4f), diamond: false), null, 0.006f));
+				_markers.Add(new Marker(node, root, AddMarker(root, color.Lightened(0.4f), diamond: false), null, 0.006f));
 			}
 		}
 
@@ -110,9 +118,23 @@ public partial class GridView : Node3D
 
 	private void UpdateView(float delta)
 	{
-		foreach (var (line, material) in _lines)
+		for (int i = 0; i < _lines.Count; i++)
 		{
-			material.AlbedoColor = line.IsEnergized ? Energized : Dead;
+			var (line, material) = _lines[i];
+			material.AlbedoColor = !line.IsOperational ? Cut : line.IsEnergized ? Energized : Dead;
+			if (_lineState[i] && !line.IsOperational)
+			{
+				_lineState[i] = false;
+				OnLineCut(line);
+			}
+		}
+
+		foreach (var marker in _markers)
+		{
+			if (marker.Node.HitPoints != marker.ShownHitPoints)
+			{
+				OnDamaged(marker);
+			}
 		}
 
 		if (_camera == null)
@@ -218,6 +240,7 @@ public partial class GridView : Node3D
 	{
 		var mesh = new MeshInstance3D
 		{
+			Name = MarkerName,
 			Mesh = new BoxMesh { Size = Vector3.One },
 			Rotation = diamond ? new Vector3(Mathf.Pi / 4, 0, Mathf.Pi / 4) : Vector3.Zero,
 			MaterialOverride = new StandardMaterial3D
@@ -357,5 +380,105 @@ public partial class GridView : Node3D
 
 	private static StandardMaterial3D Material(Color color) => new() { AlbedoColor = color, Roughness = 0.8f };
 
-	private readonly record struct Marker(Node3D Root, MeshInstance3D Mesh, Label3D? Label, float Scale);
+	/// <summary>Explosion, then charred models, smoke and an updated label.</summary>
+	private void OnDamaged(Marker marker)
+	{
+		var node = marker.Node;
+		marker.ShownHitPoints = node.HitPoints;
+		float size = Mathf.Max(80f, (_camera?.Distance ?? 0) * 0.02f);
+		marker.Root.AddChild(new Explosion(size) { Position = new Vector3(0, 30, 0) });
+
+		if (marker.Label != null && node is PowerPlant plant)
+		{
+			marker.Label.Text = node.IsOperational
+				? $"{plant.Kind} {plant.CapacityMW:N0} MW ({node.HitPoints * 100 / node.MaxHitPoints}%)"
+				: $"{plant.Kind} plant DESTROYED";
+			marker.Label.Modulate = node.IsOperational ? new Color(1f, 0.7f, 0.4f) : new Color(1f, 0.35f, 0.3f);
+		}
+
+		if (!node.IsOperational)
+		{
+			Char(marker.Root);
+			marker.Mesh.MaterialOverride = new StandardMaterial3D
+			{
+				AlbedoColor = new Color(0.2f, 0.2f, 0.2f),
+				ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+			};
+			marker.Root.AddChild(BuildSmoke(node is PowerPlant ? 120f : 40f));
+		}
+	}
+
+	/// <summary>A pylon comes down: explosion where it was hit.</summary>
+	private void OnLineCut(PowerLine line)
+	{
+		var from = _grid!.Nodes[line.FromNodeId];
+		var to = _grid.Nodes[line.ToNodeId];
+
+		// The sim does not keep where the line was hit, so show it at the middle.
+		float x = (float)((from.X + to.X).ToDouble() / 2);
+		float z = (float)((from.Z + to.Z).ToDouble() / 2);
+		AddChild(new Explosion(Mathf.Max(60f, (_camera?.Distance ?? 0) * 0.02f))
+		{
+			Position = new Vector3(x, _terrain!.HeightAt(x, z) + 30, z),
+		});
+	}
+
+	/// <summary>Turns every model part under the node black, leaving the marker, labels and effects alone.</summary>
+	private static void Char(Node node)
+	{
+		foreach (var child in node.GetChildren())
+		{
+			if (child is Explosion or Label3D || child.Name == MarkerName)
+			{
+				continue;
+			}
+
+			if (child is MeshInstance3D mesh)
+			{
+				mesh.MaterialOverride = Charred;
+			}
+
+			Char(child);
+		}
+	}
+
+	private static MeshInstance3D BuildSmoke(float radius) => new()
+	{
+		Name = "Smoke",
+		Mesh = new CylinderMesh { TopRadius = radius * 1.6f, BottomRadius = radius * 0.5f, Height = radius * 6 },
+		Position = new Vector3(0, radius * 3, 0),
+		MaterialOverride = new StandardMaterial3D
+		{
+			AlbedoColor = new Color(0.15f, 0.15f, 0.15f, 0.45f),
+			Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+			ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+			CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+		},
+		VisibilityRangeEnd = ModelsVisibleUpTo * 2,
+	};
+
+	private sealed class Marker
+	{
+		public Marker(GridNode node, Node3D root, MeshInstance3D mesh, Label3D? label, float scale)
+		{
+			Node = node;
+			Root = root;
+			Mesh = mesh;
+			Label = label;
+			Scale = scale;
+			ShownHitPoints = node.HitPoints;
+		}
+
+		public GridNode Node { get; }
+
+		public Node3D Root { get; }
+
+		public MeshInstance3D Mesh { get; }
+
+		public Label3D? Label { get; }
+
+		public float Scale { get; }
+
+		public int ShownHitPoints { get; set; }
+	}
 }

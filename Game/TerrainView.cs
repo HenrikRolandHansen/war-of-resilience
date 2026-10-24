@@ -24,6 +24,8 @@ public partial class TerrainView : Node3D
 	private const int ChunkCells = 100;
 
 	private Terrain? _terrain;
+	private ShaderMaterial? _groundMaterial;
+	private ShaderMaterial? _waterMaterial;
 
 	/// <param name="ownerAtPoint">Optional country owner per grid point (-1 for none); owned land is tinted in the country's colour.</param>
 	/// <param name="urbanAtPoint">Optional 0..1 per grid point; built-up land is greyed toward asphalt.</param>
@@ -36,30 +38,88 @@ public partial class TerrainView : Node3D
 			child.QueueFree();
 		}
 
-		var groundMaterial = new StandardMaterial3D
-		{
-			VertexColorUseAsAlbedo = true,
-			VertexColorIsSrgb = true,
-			Roughness = 0.95f,
-		};
-		BuildGround(terrain, groundMaterial, ownerAtPoint, urbanAtPoint);
-
 		float sizeX = (float)terrain.SizeX.ToDouble();
 		float sizeZ = (float)terrain.SizeZ.ToDouble();
+
+		_groundMaterial = new ShaderMaterial { Shader = new Shader { Code = GroundShader } };
+		_waterMaterial = new ShaderMaterial { Shader = new Shader { Code = WaterShader } };
+		_waterMaterial.SetShaderParameter("water_color", new Color(0.15f, 0.35f, 0.55f, 0.75f));
+		foreach (var material in new[] { _groundMaterial, _waterMaterial })
+		{
+			material.SetShaderParameter("map_size", new Vector2(sizeX, sizeZ));
+			material.SetShaderParameter("fog", PlaceholderFog());
+		}
+
+		BuildGround(terrain, _groundMaterial, ownerAtPoint, urbanAtPoint);
+
 		AddChild(new MeshInstance3D
 		{
 			Name = "Water",
 			Mesh = new PlaneMesh { Size = new Vector2(sizeX, sizeZ) },
 			Position = new Vector3(sizeX / 2, (float)terrain.SeaLevel.ToDouble(), sizeZ / 2),
-			MaterialOverride = new StandardMaterial3D
-			{
-				AlbedoColor = new Color(0.15f, 0.35f, 0.55f, 0.75f),
-				Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-				Roughness = 0.1f,
-				Metallic = 0.2f,
-			},
+			MaterialOverride = _waterMaterial,
 		});
 	}
+
+	/// <summary>Darkens ground and water the local player cannot see (see <see cref="FogOfWar"/>).</summary>
+	public void SetFog(Texture2D fog)
+	{
+		_groundMaterial?.SetShaderParameter("fog", fog);
+		_waterMaterial?.SetShaderParameter("fog", fog);
+	}
+
+	/// <summary>All-visible fog until the real one is set.</summary>
+	private static Texture2D PlaceholderFog()
+	{
+		var image = Image.CreateEmpty(1, 1, false, Image.Format.L8);
+		image.Fill(Colors.White);
+		return ImageTexture.CreateFromImage(image);
+	}
+
+	private const string FogFunctions = @"
+uniform sampler2D fog : filter_linear, repeat_disable;
+uniform vec2 map_size;
+varying vec2 world_xz;
+
+// Never seen: dark. Seen before: dim. In sight now: full brightness.
+float fog_light() {
+	float f = texture(fog, world_xz / map_size).r;
+	return mix(0.45, 1.0, f);
+}
+";
+
+	private const string GroundShader = @"
+shader_type spatial;
+" + FogFunctions + @"
+void vertex() {
+	world_xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
+}
+
+void fragment() {
+	// Vertex colours are sRGB; light in linear space.
+	vec3 c = COLOR.rgb;
+	c = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+	ALBEDO = c * fog_light();
+	ROUGHNESS = 0.95;
+}
+";
+
+	private const string WaterShader = @"
+shader_type spatial;
+render_mode blend_mix;
+uniform vec4 water_color : source_color;
+" + FogFunctions + @"
+void vertex() {
+	world_xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
+}
+
+void fragment() {
+	ALBEDO = water_color.rgb * fog_light();
+	ALPHA = water_color.a;
+	ROUGHNESS = 0.1;
+	METALLIC = 0.2;
+}
+";
 
 	/// <summary>Height of the water surface in metres.</summary>
 	public float SeaLevel => _terrain == null ? 0 : (float)_terrain.SeaLevel.ToDouble();

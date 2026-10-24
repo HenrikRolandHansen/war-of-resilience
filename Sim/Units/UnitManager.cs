@@ -1,17 +1,23 @@
 using WarOfResilience.Sim.Core;
+using WarOfResilience.Sim.Grid;
 using WarOfResilience.Sim.World;
 
 namespace WarOfResilience.Sim.Units;
 
 /// <summary>
-/// All units and their movement. Units drive or fly in a straight line to their destination.
-/// Ground units stop at the water's edge (roads and path finding come later); air units keep
-/// their cruise altitude above the ground or sea, climbing and sinking smoothly.
+/// All units, their movement and kamikaze attacks. Units drive or fly in a straight line to their
+/// destination. Ground units stop at the water's edge (roads and path finding come later); air
+/// units keep their cruise altitude above the ground or sea, climbing and sinking smoothly. A
+/// kamikaze unit follows its target, dives in the last stretch and is destroyed when it hits,
+/// damaging the target.
 /// </summary>
 public sealed class UnitManager : ISimSystem
 {
 	/// <summary>Spacing between units sent to the same spot, so they do not stack.</summary>
 	public static readonly Fixed FormationSpacing = Fixed.FromInt(80);
+
+	/// <summary>A kamikaze unit starts diving at its target from this far away.</summary>
+	private static readonly Fixed DiveDistance = Fixed.FromInt(1_500);
 
 	/// <summary>Air units change height at most this share of their forward step per tick.</summary>
 	private static readonly Fixed ClimbRate = Fixed.FromRatio(1, 2);
@@ -53,10 +59,81 @@ public sealed class UnitManager : ISimSystem
 	{
 		foreach (var unit in _units)
 		{
+			if (!unit.IsAlive)
+			{
+				continue;
+			}
+
+			if (unit.Target is { } target)
+			{
+				if (PositionOf(context, target) is not { } position)
+				{
+					// Target gone: fly on to where it was last seen and wait there.
+					unit.Target = null;
+				}
+				else
+				{
+					unit.Destination = position;
+				}
+			}
+
 			if (unit.Destination is { } destination)
 			{
 				Move(unit, destination);
+				if (unit.Target is { } hit && unit.X == destination.X && unit.Z == destination.Z)
+				{
+					Detonate(context, unit, hit);
+				}
 			}
+		}
+	}
+
+	/// <summary>Where a target is now, or null if it is already destroyed.</summary>
+	public (Fixed X, Fixed Z)? PositionOf(SimContext context, AttackTarget target)
+	{
+		switch (target.Kind)
+		{
+			case TargetKind.Unit:
+				return Find(target.Id) is { IsAlive: true } unit ? (unit.X, unit.Z) : null;
+			case TargetKind.GridNode:
+				var grid = context.FindSystem<PowerGrid>();
+				return grid != null && target.Id < grid.Nodes.Count && grid.Nodes[target.Id] is { IsOperational: true } node
+					? (node.X, node.Z) : null;
+			case TargetKind.PowerLine:
+				var lines = context.FindSystem<PowerGrid>();
+				return lines != null && target.Id < lines.Lines.Count && lines.Lines[target.Id].IsOperational
+					? (target.X, target.Z) : null;
+			default:
+				return null;
+		}
+	}
+
+	private void Detonate(SimContext context, Unit attacker, AttackTarget target)
+	{
+		int damage = attacker.Type.AttackDamage;
+		switch (target.Kind)
+		{
+			case TargetKind.Unit when Find(target.Id) is { IsAlive: true } victim:
+				Damage(victim, damage);
+				break;
+			case TargetKind.GridNode:
+				context.FindSystem<PowerGrid>()?.Nodes[target.Id].Damage(damage);
+				break;
+			case TargetKind.PowerLine:
+				context.FindSystem<PowerGrid>()?.Lines[target.Id].Damage(damage);
+				break;
+		}
+
+		Damage(attacker, attacker.HitPoints);
+	}
+
+	private static void Damage(Unit unit, int amount)
+	{
+		unit.HitPoints = Math.Max(0, unit.HitPoints - amount);
+		if (!unit.IsAlive)
+		{
+			unit.Destination = null;
+			unit.Target = null;
 		}
 	}
 
@@ -91,6 +168,12 @@ public sealed class UnitManager : ISimSystem
 		unit.Z = nextZ;
 
 		var wanted = CruiseHeight(unit.Type, nextX, nextZ);
+		if (unit.Target != null && distance <= DiveDistance)
+		{
+			// Dive onto the target.
+			wanted = Fixed.Max(Terrain.HeightAt(nextX, nextZ), Terrain.SeaLevel) + Fixed.FromInt(5);
+		}
+
 		if (unit.Type.Domain == UnitDomain.Air)
 		{
 			var maxChange = step * ClimbRate;
@@ -98,7 +181,8 @@ public sealed class UnitManager : ISimSystem
 			unit.Y += Fixed.Max(-maxChange, Fixed.Min(maxChange, change));
 
 			// Never fly into a hill, whatever the climb rate.
-			unit.Y = Fixed.Max(unit.Y, Fixed.Max(Terrain.HeightAt(nextX, nextZ), Terrain.SeaLevel) + Fixed.FromInt(20));
+			var floor = unit.Target != null ? Fixed.FromInt(5) : Fixed.FromInt(20);
+			unit.Y = Fixed.Max(unit.Y, Fixed.Max(Terrain.HeightAt(nextX, nextZ), Terrain.SeaLevel) + floor);
 		}
 		else
 		{
@@ -124,6 +208,7 @@ public sealed class UnitManager : ISimSystem
 			checksum.Add(unit.HitPoints);
 			checksum.Add(unit.Destination?.X ?? Fixed.FromInt(-1));
 			checksum.Add(unit.Destination?.Z ?? Fixed.FromInt(-1));
+			checksum.Add(unit.Target is { } target ? (int)target.Kind * 1_000_000 + target.Id : -1);
 		}
 	}
 }
