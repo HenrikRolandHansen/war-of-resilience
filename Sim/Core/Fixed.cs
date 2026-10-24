@@ -53,6 +53,41 @@ public readonly struct Fixed : IEquatable<Fixed>, IComparable<Fixed>
 	public static Fixed Max(Fixed a, Fixed b) => a.Raw >= b.Raw ? a : b;
 	public static Fixed Abs(Fixed a) => a.Raw < 0 ? -a : a;
 
+	/// <summary>Square root, rounded down. Exact integer maths, so every machine gets the same result.</summary>
+	public static Fixed Sqrt(Fixed a)
+	{
+		if (a.Raw <= 0)
+		{
+			return Zero;
+		}
+
+		// sqrt(raw / 2^16) * 2^16 = sqrt(raw * 2^16).
+		UInt128 value = (UInt128)(ulong)a.Raw << FractionBits;
+		UInt128 root = 0;
+		UInt128 bit = (UInt128)1 << 126;
+		while (bit > value)
+		{
+			bit >>= 2;
+		}
+
+		while (bit != 0)
+		{
+			if (value >= root + bit)
+			{
+				value -= root + bit;
+				root = (root >> 1) + bit;
+			}
+			else
+			{
+				root >>= 1;
+			}
+
+			bit >>= 2;
+		}
+
+		return new((long)root);
+	}
+
 	public bool Equals(Fixed other) => Raw == other.Raw;
 	public override bool Equals(object? obj) => obj is Fixed other && Equals(other);
 	public override int GetHashCode() => Raw.GetHashCode();

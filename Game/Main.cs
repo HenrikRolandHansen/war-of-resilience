@@ -2,6 +2,7 @@ using Godot;
 using System.Linq;
 using WarOfResilience.Sim.Core;
 using WarOfResilience.Sim.Grid;
+using WarOfResilience.Sim.Units;
 using WarOfResilience.Sim.World;
 
 namespace WarOfResilience.Game;
@@ -14,8 +15,12 @@ public partial class Main : Node3D
 	// Fixed seed for now; later it comes from the match setup.
 	private const ulong Seed = 1;
 
+	/// <summary>The country the local player controls.</summary>
+	private const int LocalPlayerId = 0;
+
 	private readonly Simulation _simulation = new(Seed);
 	private double _accumulator;
+	private UnitView? _unitView;
 
 	public override void _Ready()
 	{
@@ -25,9 +30,14 @@ public partial class Main : Node3D
 		var world = WorldGenerator.Generate(Seed, terrain, new WorldGenerator.Settings());
 		var grid = GridGenerator.Generate(Seed, terrain, world, new GridGenerator.Settings());
 
+		var catalog = UnitCatalog.Parse(FileAccess.GetFileAsString("res://Data/units.json"));
+		var units = new UnitManager(terrain, catalog);
+		StartingForces.Place(units, world);
+
 		// The grid runs first so cities earn this tick's income with this tick's power.
 		_simulation.AddSystem(grid);
 		_simulation.AddSystem(world);
+		_simulation.AddSystem(units);
 
 		var terrainView = GetNode<TerrainView>("TerrainView");
 		float cellSize = (float)terrain.CellSize.ToDouble();
@@ -43,6 +53,13 @@ public partial class Main : Node3D
 		var gridView = new GridView { Name = "GridView" };
 		AddChild(gridView);
 		gridView.Build(grid, terrainView, camera);
+		_unitView = new UnitView { Name = "UnitView" };
+		AddChild(_unitView);
+		_unitView.Build(units, camera);
+		var selection = new SelectionController { Name = "Selection" };
+		AddChild(selection);
+		selection.Setup(_simulation, units, _unitView, camera, LocalPlayerId);
+
 		GetNode<Hud>("Hud").Setup(_simulation, world, grid);
 		ApplyStartView(world, camera);
 
@@ -53,7 +70,7 @@ public partial class Main : Node3D
 		}
 
 		GD.Print($"Map {sizeX / 1000:0} x {sizeZ / 1000:0} km, {world.Cities.Count} cities, {grid.Plants.Count()} power plants, "
-			+ $"{grid.Lines.Count} power lines, checksum {_simulation.ComputeChecksum():X16}.");
+			+ $"{grid.Lines.Count} power lines, {units.Units.Count} units, checksum {_simulation.ComputeChecksum():X16}.");
 	}
 
 	/// <summary>
@@ -101,8 +118,11 @@ public partial class Main : Node3D
 		_accumulator += delta;
 		while (_accumulator >= tickLength)
 		{
+			_unitView?.CapturePrevious();
 			_simulation.Step();
 			_accumulator -= tickLength;
 		}
+
+		_unitView?.SetInterpolation((float)(_accumulator / tickLength));
 	}
 }

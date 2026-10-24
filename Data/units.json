@@ -1,0 +1,36 @@
+{
+  "comment": "Unit types. Speeds are real-world km/h; timeScale is how many game seconds pass per real second, so units cross the 1200 km map in minutes rather than hours.",
+  "timeScale": 20,
+  "units": [
+    {
+      "id": "jeep",
+      "name": "Jeep",
+      "domain": "ground",
+      "speedKmh": 90,
+      "cruiseAltitudeMetres": 0,
+      "hitPoints": 100,
+      "sightMetres": 3000,
+      "cost": 200
+    },
+    {
+      "id": "recon_drone",
+      "name": "Recon drone",
+      "domain": "air",
+      "speedKmh": 130,
+      "cruiseAltitudeMetres": 400,
+      "hitPoints": 30,
+      "sightMetres": 8000,
+      "cost": 150
+    },
+    {
+      "id": "kamikaze_drone",
+      "name": "Kamikaze drone",
+      "domain": "air",
+      "speedKmh": 185,
+      "cruiseAltitudeMetres": 150,
+      "hitPoints": 20,
+      "sightMetres": 1500,
+      "cost": 100
+    }
+  ]
+}
