@@ -13,7 +13,7 @@ public partial class RtsCamera : Node3D
 	[Export] public float PitchDegrees { get; set; } = 55f;
 	[Export] public float MinDistance { get; set; } = 200f;
 	[Export] public float MaxDistance { get; set; } = 1_500_000f;
-	[Export] public float StartDistance { get; set; } = 300_000f;
+	[Export] public float StartDistance { get; set; } = 800_000f;
 
 	/// <summary>Pan speed in metres per second at a distance of 100 m; scales with zoom.</summary>
 	[Export] public float PanSpeed { get; set; } = 120f;
@@ -28,6 +28,9 @@ public partial class RtsCamera : Node3D
 	[Export] public int EdgeScrollMargin { get; set; } = 12;
 
 	private Camera3D _camera = null!;
+
+	/// <summary>Current distance from the camera to the point it looks at, in metres.</summary>
+	public float Distance => _distance;
 	private Func<float, float, float> _groundHeight = (_, _) => 0f;
 	private Rect2 _bounds = new(0, 0, 1000, 1000);
 	private float _distance;

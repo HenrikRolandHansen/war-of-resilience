@@ -54,6 +54,12 @@ public partial class TerrainView : Node3D
 		});
 	}
 
+	/// <summary>Map size along X in metres.</summary>
+	public float SizeX => _terrain == null ? 0 : (float)_terrain.SizeX.ToDouble();
+
+	/// <summary>Map size along Z in metres.</summary>
+	public float SizeZ => _terrain == null ? 0 : (float)_terrain.SizeZ.ToDouble();
+
 	/// <summary>Ground height in world units at a position, for the camera and later for placing objects.</summary>
 	public float HeightAt(float x, float z)
 	{

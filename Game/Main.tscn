@@ -1,8 +1,10 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://Game/Main.cs" id="1_main"]
 [ext_resource type="Script" path="res://Game/TerrainView.cs" id="2_terrain"]
 [ext_resource type="Script" path="res://Game/RtsCamera.cs" id="3_camera"]
+[ext_resource type="Script" path="res://Game/WorldView.cs" id="4_world"]
+[ext_resource type="Script" path="res://Game/Hud.cs" id="5_hud"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_horizon_color = Color(0.64, 0.68, 0.72, 1)
@@ -37,3 +39,9 @@ script = ExtResource("2_terrain")
 script = ExtResource("3_camera")
 
 [node name="Camera3D" type="Camera3D" parent="RtsCamera"]
+
+[node name="WorldView" type="Node3D" parent="."]
+script = ExtResource("4_world")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")

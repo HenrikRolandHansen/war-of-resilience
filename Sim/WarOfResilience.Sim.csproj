@@ -7,4 +7,7 @@
     <RootNamespace>WarOfResilience.Sim</RootNamespace>
     <Optimize Condition=" '$(Configuration)' == 'ExportRelease' ">true</Optimize>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="WarOfResilience.Tests" />
+  </ItemGroup>
 </Project>
