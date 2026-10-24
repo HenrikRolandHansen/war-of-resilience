@@ -64,6 +64,7 @@ public sealed class UnitCatalog
 				HitPoints = entry.HitPoints,
 				SightMetres = entry.SightMetres,
 				Cost = entry.Cost,
+				BuildTicks = Math.Max(1, entry.BuildSeconds * Simulation.TicksPerSecond),
 				AttackDamage = entry.AttackDamage,
 				AirDefence = entry.AirDefence is { } ad ? Validate(entry.Id, ad) : null,
 				Index = types.Count,
@@ -121,6 +122,8 @@ public sealed class UnitCatalog
 		public int SightMetres { get; set; }
 
 		public int Cost { get; set; }
+
+		public int BuildSeconds { get; set; }
 
 		public int AttackDamage { get; set; }
 

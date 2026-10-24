@@ -1,5 +1,6 @@
 using Godot;
 using System.Linq;
+using WarOfResilience.Sim.AI;
 using WarOfResilience.Sim.Core;
 using WarOfResilience.Sim.Grid;
 using WarOfResilience.Sim.Units;
@@ -18,6 +19,9 @@ public partial class Main : Node3D
 	/// <summary>The country the local player controls.</summary>
 	private const int LocalPlayerId = 0;
 
+	/// <summary>The other country is run by <see cref="SimpleAi"/>.</summary>
+	private const int AiCountryId = 1;
+
 	private readonly Simulation _simulation = new(Seed);
 	private double _accumulator;
 	private UnitView? _unitView;
@@ -35,13 +39,16 @@ public partial class Main : Node3D
 		StartingForces.Place(units, world);
 		var airDefence = new AirDefence(units);
 		var vision = new Vision(units, world);
+		var production = new Production(units, world);
 
 		// The grid runs first so cities earn this tick's income with this tick's power.
 		_simulation.AddSystem(grid);
 		_simulation.AddSystem(world);
 		_simulation.AddSystem(units);
 		_simulation.AddSystem(airDefence);
+		_simulation.AddSystem(production);
 		_simulation.AddSystem(vision);
+		_simulation.AddSystem(new SimpleAi(AiCountryId, units, world, grid, vision, production));
 
 		var terrainView = GetNode<TerrainView>("TerrainView");
 		float cellSize = (float)terrain.CellSize.ToDouble();
@@ -77,7 +84,10 @@ public partial class Main : Node3D
 		AddChild(strategicMap);
 		strategicMap.Setup(_simulation, terrain, world, grid, units, airDefence, vision, _unitView, selection, camera, LocalPlayerId);
 
-		GetNode<Hud>("Hud").Setup(_simulation, world, grid);
+		GetNode<Hud>("Hud").Setup(_simulation, world, grid, new[] { AiCountryId });
+		var factory = new BuildPanel { Name = "BuildPanel" };
+		AddChild(factory);
+		factory.Setup(_simulation, catalog, production, world, LocalPlayerId);
 		ApplyStartView(world, camera);
 
 		GD.Print($"War of Resilience started. Simulation runs at {Simulation.TicksPerSecond} ticks/s.");
