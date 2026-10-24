@@ -12,6 +12,10 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Tests load the real data files the game ships with. -->
+    <None Include="../Data/*.json" LinkBase="Data" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../Sim/WarOfResilience.Sim.csproj" />
   </ItemGroup>
 </Project>

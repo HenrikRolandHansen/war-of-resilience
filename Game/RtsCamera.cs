@@ -30,6 +30,11 @@ public partial class RtsCamera : Node3D
 
 	private Camera3D _camera = null!;
 
+	/// <summary>A right click without dragging, at this screen position. Used for orders.</summary>
+	public event Action<Vector2>? RightClicked;
+
+	public Camera3D Camera => _camera;
+
 	/// <summary>Current distance from the camera to the point it looks at, in metres.</summary>
 	public float Distance => _distance;
 	private Func<float, float, float> _groundHeight = (_, _) => 0f;
@@ -91,6 +96,11 @@ public partial class RtsCamera : Node3D
 				_zoomAnchor = wheel.Position;
 				break;
 			case InputEventMouseButton { ButtonIndex: MouseButton.Right or MouseButton.Middle } button:
+				if (!button.Pressed && _dragButtonDown && !_dragging && button.ButtonIndex == MouseButton.Right)
+				{
+					RightClicked?.Invoke(button.Position);
+				}
+
 				_dragButtonDown = button.Pressed;
 				_dragStart = button.Position;
 				_dragging = false;
@@ -153,6 +163,49 @@ public partial class RtsCamera : Node3D
 			_distance = _targetDistance;
 			_zoomAnchor = null;
 		}
+	}
+
+	/// <summary>
+	/// Where the ray through a screen point first meets the terrain (or the sea), found by marching
+	/// along the ray and then narrowing down. Null if it hits nothing within view.
+	/// </summary>
+	public Vector3? GroundPointAt(Vector2 screenPosition)
+	{
+		var origin = _camera.ProjectRayOrigin(screenPosition);
+		var direction = _camera.ProjectRayNormal(screenPosition);
+		float step = Mathf.Max(2f, _distance / 300f);
+		float maxLength = _camera.Far;
+
+		bool Below(float t)
+		{
+			var p = origin + direction * t;
+			return p.Y <= _groundHeight(p.X, p.Z);
+		}
+
+		float previous = 0;
+		for (float t = step; t <= maxLength; previous = t, t += step)
+		{
+			if (Below(t))
+			{
+				float low = previous, high = t;
+				for (int i = 0; i < 20; i++)
+				{
+					float mid = (low + high) / 2;
+					if (Below(mid))
+					{
+						high = mid;
+					}
+					else
+					{
+						low = mid;
+					}
+				}
+
+				return origin + direction * high;
+			}
+		}
+
+		return null;
 	}
 
 	/// <summary>Moves the map so the ground point that was under <paramref name="from"/> ends up under <paramref name="to"/>.</summary>
