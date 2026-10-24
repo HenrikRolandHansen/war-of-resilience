@@ -25,7 +25,7 @@ public class WorldTests
 	}
 
 	[Fact]
-	public void Generate_PlacesCitiesOnHabitableLandOnTheirOwnSide()
+	public void Generate_PlacesCitiesOnHabitableLandInsideTheirOwnCountry()
 	{
 		foreach (ulong seed in new ulong[] { 1, 2, 3, 4, 5 })
 		{
@@ -36,14 +36,12 @@ public class WorldTests
 				var aboveSea = Map.HeightAt(city.X, city.Z) - Map.SeaLevel;
 				Assert.True(aboveSea >= Defaults.MinHeightAboveSea, $"{city.Name} is too low ({aboveSea} m above sea).");
 				Assert.True(aboveSea <= Defaults.MaxHeightAboveSea, $"{city.Name} is too high ({aboveSea} m above sea).");
+				Assert.Equal(city.CountryId, world.Territory.OwnerAt(Map, city.X, city.Z));
 
-				if (city.CountryId == 0)
+				if (!city.IsCapital)
 				{
-					Assert.True(city.X <= world.BorderX - Defaults.BorderMargin, $"{city.Name} is too close to the border.");
-				}
-				else
-				{
-					Assert.True(city.X >= world.BorderX + Defaults.BorderMargin, $"{city.Name} is too close to the border.");
+					Assert.True(WorldGenerator.IsDeepInside(world.Territory, Map, city.CountryId, city.X, city.Z, Defaults.BorderMargin),
+						$"{city.Name} (seed {seed}) is too close to the border.");
 				}
 			}
 		}
@@ -104,7 +102,7 @@ public class WorldTests
 	public void Morale_MovesOneStepTowardTarget()
 	{
 		var city = new City(0, "Test", 0, Fixed.Zero, Fixed.Zero, 100, isCapital: false, morale: 70) { TargetMorale = 40 };
-		var world = new WorldState(new[] { new Country(0, "Test") }, new[] { city }, Fixed.Zero);
+		var world = new WorldState(new[] { new Country(0, "Test") }, new[] { city }, new Territory(1, 1, new byte[] { 0 }));
 		var sim = new Simulation(seed: 1);
 		sim.AddSystem(world);
 

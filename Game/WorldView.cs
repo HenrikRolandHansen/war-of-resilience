@@ -102,18 +102,63 @@ public partial class WorldView : Node3D
 		}
 	}
 
+	/// <summary>
+	/// Traces where one country's land meets the other's with marching squares, giving a smooth
+	/// line through the 1 km grid. Cells touching water or unowned land are skipped, so the
+	/// border stops at coasts and lakes.
+	/// </summary>
 	private static MeshInstance3D BuildBorder(WorldState world, TerrainView terrain)
 	{
-		float x = (float)world.BorderX.ToDouble();
-		float length = terrain.SizeZ;
-		const float step = 2000f;
-		const float lift = 30f;
+		const float lift = 40f;
+		var territory = world.Territory;
+		float cell = terrain.SizeX / (territory.Width - 1);
 
 		var mesh = new ImmediateMesh();
-		mesh.SurfaceBegin(Mesh.PrimitiveType.LineStrip);
-		for (float z = 0; z <= length; z += step)
+		mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+		int segments = 0;
+
+		void AddPoint(float gx, float gz)
 		{
+			float x = gx * cell;
+			float z = gz * cell;
 			mesh.SurfaceAddVertex(new Vector3(x, terrain.HeightAt(x, z) + lift, z));
+		}
+
+		var crossings = new List<(float X, float Z)>(4);
+		for (int z = 0; z < territory.Depth - 1; z++)
+		{
+			for (int x = 0; x < territory.Width - 1; x++)
+			{
+				int a = territory.OwnerAtPoint(x, z);
+				int b = territory.OwnerAtPoint(x + 1, z);
+				int c = territory.OwnerAtPoint(x + 1, z + 1);
+				int d = territory.OwnerAtPoint(x, z + 1);
+				if (a < 0 || b < 0 || c < 0 || d < 0 || (a == b && b == c && c == d))
+				{
+					continue;
+				}
+
+				// Edge midpoints where the owner changes, in order: top, right, bottom, left.
+				crossings.Clear();
+				if (a != b) crossings.Add((x + 0.5f, z));
+				if (b != c) crossings.Add((x + 1, z + 0.5f));
+				if (c != d) crossings.Add((x + 0.5f, z + 1));
+				if (d != a) crossings.Add((x, z + 0.5f));
+
+				for (int i = 0; i + 1 < crossings.Count; i += 2)
+				{
+					AddPoint(crossings[i].X, crossings[i].Z);
+					AddPoint(crossings[i + 1].X, crossings[i + 1].Z);
+					segments++;
+				}
+			}
+		}
+
+		if (segments == 0)
+		{
+			// ImmediateMesh needs at least one primitive.
+			AddPoint(0, 0);
+			AddPoint(0, 0);
 		}
 
 		mesh.SurfaceEnd();

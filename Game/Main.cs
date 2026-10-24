@@ -24,7 +24,7 @@ public partial class Main : Node3D
 		_simulation.AddSystem(world);
 
 		var terrainView = GetNode<TerrainView>("TerrainView");
-		terrainView.Build(terrain);
+		terrainView.Build(terrain, world.Territory.OwnerAtPoint);
 
 		float sizeX = terrainView.SizeX;
 		float sizeZ = terrainView.SizeZ;

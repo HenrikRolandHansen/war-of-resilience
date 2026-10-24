@@ -5,7 +5,8 @@ namespace WarOfResilience.Game;
 
 /// <summary>
 /// Classic angled strategy camera (Red Alert style): fixed pitch and heading, no rotation.
-/// Pan with WASD/arrow keys, the screen edge or a middle-mouse drag; zoom with the mouse wheel.
+/// Pan with WASD/arrow keys, the screen edge, or by dragging with the right or middle mouse button
+/// (the ground under the cursor follows the mouse). The mouse wheel zooms toward the cursor.
 /// The node itself is the point on the ground the camera looks at.
 /// </summary>
 public partial class RtsCamera : Node3D
@@ -35,7 +36,20 @@ public partial class RtsCamera : Node3D
 	private Rect2 _bounds = new(0, 0, 1000, 1000);
 	private float _distance;
 	private float _targetDistance;
+
+	/// <summary>Screen position the current zoom moves toward, or null when not zooming.</summary>
+	private Vector2? _zoomAnchor;
+
+	/// <summary>A right or middle button is held; panning starts once the mouse moves past the threshold.</summary>
+	private bool _dragButtonDown;
+	private Vector2 _dragStart;
 	private bool _dragging;
+
+	/// <summary>
+	/// Pixels the mouse must move with a button held before it counts as a drag. Keeps a plain
+	/// right-click free for giving orders later.
+	/// </summary>
+	private const float DragThreshold = 5f;
 
 	public override void _Ready()
 	{
@@ -58,19 +72,30 @@ public partial class RtsCamera : Node3D
 	{
 		switch (@event)
 		{
-			case InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true }:
+			case InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true } wheel:
 				_targetDistance = Mathf.Max(MinDistance, _targetDistance * (1 - ZoomStep));
+				_zoomAnchor = wheel.Position;
 				break;
-			case InputEventMouseButton { ButtonIndex: MouseButton.WheelDown, Pressed: true }:
+			case InputEventMouseButton { ButtonIndex: MouseButton.WheelDown, Pressed: true } wheel:
 				_targetDistance = Mathf.Min(MaxDistance, _targetDistance * (1 + ZoomStep));
+				_zoomAnchor = wheel.Position;
 				break;
-			case InputEventMouseButton { ButtonIndex: MouseButton.Middle } button:
-				_dragging = button.Pressed;
+			case InputEventMouseButton { ButtonIndex: MouseButton.Right or MouseButton.Middle } button:
+				_dragButtonDown = button.Pressed;
+				_dragStart = button.Position;
+				_dragging = false;
 				break;
-			case InputEventMouseMotion motion when _dragging:
-				// Move the ground under the cursor along with the mouse.
-				float metresPerPixel = 2 * _distance * Mathf.Tan(Mathf.DegToRad(_camera.Fov / 2)) / GetViewport().GetVisibleRect().Size.Y;
-				Pan(new Vector2(-motion.Relative.X, -motion.Relative.Y) * metresPerPixel);
+			case InputEventMouseMotion motion when _dragButtonDown:
+				if (!_dragging && motion.Position.DistanceTo(_dragStart) > DragThreshold)
+				{
+					_dragging = true;
+				}
+
+				if (_dragging)
+				{
+					GrabPan(motion.Position - motion.Relative, motion.Position);
+				}
+
 				break;
 		}
 	}
@@ -86,13 +111,67 @@ public partial class RtsCamera : Node3D
 		}
 
 		float blend = 1 - Mathf.Exp(-Smoothing * dt);
-		_distance = Mathf.Lerp(_distance, _targetDistance, blend);
+		ZoomTo(Mathf.Lerp(_distance, _targetDistance, blend));
 
 		var position = Position;
 		position.Y = Mathf.Lerp(position.Y, _groundHeight(position.X, position.Z), blend);
 		Position = position;
 
 		UpdateCameraTransform();
+	}
+
+	/// <summary>Changes the distance while keeping the ground under the zoom anchor in place.</summary>
+	private void ZoomTo(float distance)
+	{
+		if (_zoomAnchor is not { } anchor)
+		{
+			_distance = distance;
+			return;
+		}
+
+		var before = GroundPointUnder(anchor);
+		_distance = distance;
+		UpdateCameraTransform();
+		var after = GroundPointUnder(anchor);
+		if (before is { } b && after is { } a)
+		{
+			Pan(new Vector2(b.X - a.X, b.Z - a.Z));
+		}
+
+		if (Mathf.Abs(_targetDistance - _distance) <= _targetDistance * 0.001f)
+		{
+			_distance = _targetDistance;
+			_zoomAnchor = null;
+		}
+	}
+
+	/// <summary>Moves the map so the ground point that was under <paramref name="from"/> ends up under <paramref name="to"/>.</summary>
+	private void GrabPan(Vector2 from, Vector2 to)
+	{
+		var before = GroundPointUnder(from);
+		var after = GroundPointUnder(to);
+		if (before is { } b && after is { } a)
+		{
+			Pan(new Vector2(b.X - a.X, b.Z - a.Z));
+			UpdateCameraTransform();
+		}
+	}
+
+	/// <summary>
+	/// Where the ray through a screen point meets the horizontal plane at the focus height.
+	/// Null if the ray points at or above the horizon.
+	/// </summary>
+	private Vector3? GroundPointUnder(Vector2 screenPosition)
+	{
+		var origin = _camera.ProjectRayOrigin(screenPosition);
+		var direction = _camera.ProjectRayNormal(screenPosition);
+		if (direction.Y > -0.0001f)
+		{
+			return null;
+		}
+
+		float t = (Position.Y - origin.Y) / direction.Y;
+		return origin + direction * t;
 	}
 
 	/// <summary>Moves the focus point; offset.X is screen-right and offset.Y is screen-down, in metres.</summary>
