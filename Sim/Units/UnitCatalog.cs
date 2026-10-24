@@ -26,10 +26,13 @@ public sealed class UnitCatalog
 		: throw new KeyNotFoundException($"Unknown unit type '{id}'.");
 
 	/// <summary>Metres a unit of this type moves in one tick, at top speed.</summary>
-	public Fixed StepPerTick(UnitType type)
+	public Fixed StepPerTick(UnitType type) => StepPerTick(type.SpeedKmh);
+
+	/// <summary>Metres something moving at a real-world speed covers in one tick.</summary>
+	public Fixed StepPerTick(int speedKmh)
 	{
 		// km/h -> m/s is * 1000 / 3600; one division at the end keeps it exact where possible.
-		long numerator = (long)type.SpeedKmh * 1000 * TimeScale;
+		long numerator = (long)speedKmh * 1000 * TimeScale;
 		long denominator = 3600L * Simulation.TicksPerSecond;
 		return Fixed.FromRaw((numerator << Fixed.FractionBits) / denominator);
 	}
@@ -62,6 +65,7 @@ public sealed class UnitCatalog
 				SightMetres = entry.SightMetres,
 				Cost = entry.Cost,
 				AttackDamage = entry.AttackDamage,
+				AirDefence = entry.AirDefence is { } ad ? Validate(entry.Id, ad) : null,
 				Index = types.Count,
 			});
 		}
@@ -72,6 +76,17 @@ public sealed class UnitCatalog
 		}
 
 		return new UnitCatalog(file.TimeScale, types);
+	}
+
+	private static AirDefenceStats Validate(string id, AirDefenceStats stats)
+	{
+		if (stats.RangeMetres <= 0 || stats.Magazine <= 0 || stats.ReloadTicks <= 0 || stats.RearmTicks <= 0
+			|| stats.MissileSpeedKmh <= 0 || stats.MissileDamage <= 0 || stats.HitChancePercent is < 0 or > 100)
+		{
+			throw new FormatException($"Unit '{id}' has invalid air defence stats.");
+		}
+
+		return stats;
 	}
 
 	private static readonly JsonSerializerOptions Options = new()
@@ -108,5 +123,7 @@ public sealed class UnitCatalog
 		public int Cost { get; set; }
 
 		public int AttackDamage { get; set; }
+
+		public AirDefenceStats? AirDefence { get; set; }
 	}
 }

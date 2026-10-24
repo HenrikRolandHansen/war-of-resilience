@@ -34,6 +34,32 @@ public sealed record UnitType
 
 	public bool CanAttack => AttackDamage > 0;
 
+	/// <summary>Surface-to-air missiles this unit carries, or null if it has none.</summary>
+	public AirDefenceStats? AirDefence { get; init; }
+
 	/// <summary>Index in the catalog; used in the checksum instead of the string id.</summary>
 	public int Index { get; init; }
+}
+
+/// <summary>What an air defence unit can do. Times are in simulation ticks (10 per real second).</summary>
+public sealed record AirDefenceStats
+{
+	/// <summary>Enemy aircraft closer than this, measured along the ground, are fired at.</summary>
+	public int RangeMetres { get; init; }
+
+	/// <summary>Missiles ready to fire when full.</summary>
+	public int Magazine { get; init; }
+
+	/// <summary>Ticks between two launches.</summary>
+	public int ReloadTicks { get; init; }
+
+	/// <summary>Ticks to get one spent missile back.</summary>
+	public int RearmTicks { get; init; }
+
+	/// <summary>Chance that a missile reaching its target destroys it.</summary>
+	public int HitChancePercent { get; init; }
+
+	public int MissileSpeedKmh { get; init; }
+
+	public int MissileDamage { get; init; }
 }

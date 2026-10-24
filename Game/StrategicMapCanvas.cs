@@ -27,6 +27,7 @@ public partial class StrategicMapCanvas : Control
 	private WorldState _world = null!;
 	private PowerGrid _grid = null!;
 	private UnitManager _units = null!;
+	private AirDefence _airDefence = null!;
 	private Vision _vision = null!;
 	private RtsCamera _camera = null!;
 	private int _playerId;
@@ -36,13 +37,14 @@ public partial class StrategicMapCanvas : Control
 	private Vector2? _dragStart;
 	private Vector2 _mouse;
 
-	public void Setup(StrategicMap map, Terrain terrain, WorldState world, PowerGrid grid, UnitManager units, Vision vision,
+	public void Setup(StrategicMap map, Terrain terrain, WorldState world, PowerGrid grid, UnitManager units, AirDefence airDefence, Vision vision,
 		RtsCamera camera, int playerId)
 	{
 		_map = map;
 		_world = world;
 		_grid = grid;
 		_units = units;
+		_airDefence = airDefence;
 		_vision = vision;
 		_camera = camera;
 		_playerId = playerId;
@@ -137,6 +139,23 @@ public partial class StrategicMapCanvas : Control
 				DrawLine(p + new Vector2(-6, -6), p + new Vector2(6, 6), Cut, 2.5f);
 				DrawLine(p + new Vector2(-6, 6), p + new Vector2(6, -6), Cut, 2.5f);
 			}
+		}
+
+		// Air defence coverage of launchers the player can see; faint when out of missiles.
+		foreach (var unit in _units.Units)
+		{
+			if (unit.Type.AirDefence is not { } stats || !unit.IsAlive || !_vision.CanSee(_playerId, unit))
+			{
+				continue;
+			}
+
+			var centre = ToMap(unit.X, unit.Z);
+			float radius = stats.RangeMetres / _worldSize.X * MapRect.Size.X;
+			var color = WorldView.ColorOf(unit.OwnerId).Lightened(0.3f);
+			color.A = _airDefence.AmmoOf(unit) > 0 ? 0.22f : 0.08f;
+			DrawCircle(centre, radius, color);
+			color.A = 0.9f;
+			DrawArc(centre, radius, 0, Mathf.Tau, 48, color, 1.5f);
 		}
 
 		// Enemy units last seen in the fog: hollow, with how long ago (one label per group).

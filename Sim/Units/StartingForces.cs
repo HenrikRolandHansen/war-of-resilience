@@ -12,6 +12,7 @@ public static class StartingForces
 		("jeep", 3),
 		("recon_drone", 2),
 		("kamikaze_drone", 3),
+		("air_defence", 2),
 	};
 
 	/// <summary>Units start this far from the capital's centre, just outside the built-up area.</summary>

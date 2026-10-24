@@ -134,6 +134,9 @@ public partial class UnitView : Node3D
 			case "kamikaze_drone":
 				BuildKamikazeDrone(model);
 				break;
+			case "air_defence":
+				BuildAirDefence(model, unit.OwnerId);
+				break;
 			default:
 				BuildReconDrone(model);
 				break;
@@ -209,6 +212,41 @@ public partial class UnitView : Node3D
 		AddPart(model, new PrismMesh { Size = new Vector3(2.5f, 2.2f, 0.08f) }, sand, new Vector3(0, 0, 0.5f), new Vector3(-Mathf.Pi / 2, 0, 0));
 		AddPart(model, new BoxMesh { Size = new Vector3(0.05f, 0.6f, 0.4f) }, sand, new Vector3(1.2f, 0.25f, 1.4f));
 		AddPart(model, new BoxMesh { Size = new Vector3(0.05f, 0.6f, 0.4f) }, sand, new Vector3(-1.2f, 0.25f, 1.4f));
+	}
+
+	/// <summary>A truck carrying a raised box of four missile tubes, plus a radar panel.</summary>
+	private static void BuildAirDefence(Node3D model, int ownerId)
+	{
+		var olive = Material(new Color(0.3f, 0.34f, 0.22f));
+		var dark = Material(new Color(0.1f, 0.1f, 0.1f));
+		AddPart(model, new BoxMesh { Size = new Vector3(2.5f, 1.0f, 8f) }, olive, new Vector3(0, 1.2f, 0));
+		AddPart(model, new BoxMesh { Size = new Vector3(2.4f, 1.3f, 1.8f) }, olive, new Vector3(0, 2.3f, -3f));
+		AddPart(model, new BoxMesh { Size = new Vector3(2.2f, 0.6f, 0.05f) }, Material(new Color(0.4f, 0.5f, 0.6f)), new Vector3(0, 2.5f, -3.92f));
+		for (int i = 0; i < 4; i++)
+		{
+			float z = -2.8f + i * 1.9f;
+			foreach (float x in new[] { -1.2f, 1.2f })
+			{
+				AddPart(model, new CylinderMesh { TopRadius = 0.55f, BottomRadius = 0.55f, Height = 0.4f }, dark, new Vector3(x, 0.55f, z),
+					new Vector3(0, 0, Mathf.Pi / 2));
+			}
+		}
+
+		// Launcher raised towards the sky, facing backwards.
+		var launcher = new Node3D { Position = new Vector3(0, 1.9f, 1.2f), Rotation = new Vector3(Mathf.DegToRad(-40), 0, 0) };
+		model.AddChild(launcher);
+		AddPart(launcher, new BoxMesh { Size = new Vector3(2.2f, 1.6f, 5.5f) }, olive, new Vector3(0, 0.8f, 1.8f));
+		foreach (float x in new[] { -0.5f, 0.5f })
+		{
+			foreach (float y in new[] { 0.4f, 1.2f })
+			{
+				AddPart(launcher, new CylinderMesh { TopRadius = 0.3f, BottomRadius = 0.3f, Height = 0.05f }, dark, new Vector3(x, y, 4.56f),
+					new Vector3(Mathf.Pi / 2, 0, 0));
+			}
+		}
+
+		AddPart(model, new BoxMesh { Size = new Vector3(1.6f, 1.2f, 0.1f) }, Material(new Color(0.25f, 0.27f, 0.2f)), new Vector3(0, 3.6f, -2.4f));
+		AddPart(model, new BoxMesh { Size = new Vector3(1.2f, 0.05f, 1.2f) }, Material(WorldView.ColorOf(ownerId)), new Vector3(0, 2.98f, -3f));
 	}
 
 	private static void AddPart(Node3D parent, Mesh mesh, Material material, Vector3 position, Vector3 rotation = default)

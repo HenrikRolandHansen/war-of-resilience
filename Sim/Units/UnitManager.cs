@@ -127,7 +127,7 @@ public sealed class UnitManager : ISimSystem
 		Damage(attacker, attacker.HitPoints);
 	}
 
-	private static void Damage(Unit unit, int amount)
+	internal static void Damage(Unit unit, int amount)
 	{
 		unit.HitPoints = Math.Max(0, unit.HitPoints - amount);
 		if (!unit.IsAlive)
