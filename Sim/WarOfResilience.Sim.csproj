@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pure C# simulation. Must not reference Godot. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>WarOfResilience.Sim</RootNamespace>
+    <Optimize Condition=" '$(Configuration)' == 'ExportRelease' ">true</Optimize>
+  </PropertyGroup>
+</Project>
