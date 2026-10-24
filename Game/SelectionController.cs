@@ -26,6 +26,9 @@ public partial class SelectionController : CanvasLayer
 	private PowerGrid _grid = null!;
 	private Vision _vision = null!;
 	private string _hover = "";
+
+	/// <summary>Optional; when set, the info line shows how many missiles selected launchers have.</summary>
+	public AirDefence? AirDefence { get; set; }
 	private UnitView _view = null!;
 	private RtsCamera _camera = null!;
 	private int _playerId;
@@ -252,6 +255,13 @@ public partial class SelectionController : CanvasLayer
 		string what = selected.Count == 0
 			? "Nothing selected"
 			: "Selected: " + string.Join(", ", selected.GroupBy(u => u.Type.Name).Select(g => $"{g.Count()} {g.Key}"));
+		if (AirDefence != null && selected.Any(u => u.Type.AirDefence != null))
+		{
+			var launchers = selected.Where(u => u.Type.AirDefence != null).ToList();
+			int magazine = launchers.Sum(u => u.Type.AirDefence!.Magazine);
+			what += $"   Missiles {launchers.Sum(AirDefence.AmmoOf)}/{magazine}";
+		}
+
 		string help = _hover != "" ? _hover : "Left click or drag: select (Shift adds)   Right click: move or attack   Right drag: pan   Wheel: zoom";
 		_info.Text = what + "\n" + help;
 	}

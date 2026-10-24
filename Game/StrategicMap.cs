@@ -22,6 +22,7 @@ public partial class StrategicMap : CanvasLayer
 	private WorldState _world = null!;
 	private PowerGrid _grid = null!;
 	private UnitManager _units = null!;
+	private AirDefence _airDefence = null!;
 	private Vision _vision = null!;
 	private UnitView _unitView = null!;
 	private SelectionController _selection = null!;
@@ -36,13 +37,14 @@ public partial class StrategicMap : CanvasLayer
 
 	public bool IsOpen => _root.Visible;
 
-	public void Setup(Simulation simulation, Terrain terrain, WorldState world, PowerGrid grid, UnitManager units, Vision vision,
+	public void Setup(Simulation simulation, Terrain terrain, WorldState world, PowerGrid grid, UnitManager units, AirDefence airDefence, Vision vision,
 		UnitView unitView, SelectionController selection, RtsCamera camera, int playerId)
 	{
 		_simulation = simulation;
 		_world = world;
 		_grid = grid;
 		_units = units;
+		_airDefence = airDefence;
 		_vision = vision;
 		_unitView = unitView;
 		_selection = selection;
@@ -51,7 +53,7 @@ public partial class StrategicMap : CanvasLayer
 		Layer = 5;
 
 		BuildUi();
-		_canvas.Setup(this, terrain, world, grid, units, vision, camera, playerId);
+		_canvas.Setup(this, terrain, world, grid, units, airDefence, vision, camera, playerId);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -177,6 +179,7 @@ public partial class StrategicMap : CanvasLayer
 		AddSelectButton(buttons, "Kamikaze", u => u.Type.Id == "kamikaze_drone");
 		AddSelectButton(buttons, "Recon", u => u.Type.Id == "recon_drone");
 		AddSelectButton(buttons, "Jeeps", u => u.Type.Id == "jeep");
+		AddSelectButton(buttons, "Air defence", u => u.Type.AirDefence != null);
 		AddSelectButton(buttons, "All", _ => true);
 		var none = new Button { Text = "None" };
 		none.Pressed += () => Select(System.Array.Empty<int>(), add: false);
@@ -251,7 +254,8 @@ public partial class StrategicMap : CanvasLayer
 		int listed = 0;
 		foreach (var unit in _units.Units.Where(u => u.OwnerId != _playerId && u.IsAlive && _vision.CanSee(_playerId, u)))
 		{
-			AddRow($"{unit.Type.Name} · in sight", new Vector2((float)unit.X.ToDouble(), (float)unit.Z.ToDouble()),
+			string ammo = unit.Type.AirDefence != null ? $" ({_airDefence.AmmoOf(unit)} missiles)" : "";
+			AddRow($"{unit.Type.Name} · in sight{ammo}", new Vector2((float)unit.X.ToDouble(), (float)unit.Z.ToDouble()),
 				canOrder ? AttackTarget.OnUnit(unit.Id) : null);
 			listed++;
 		}

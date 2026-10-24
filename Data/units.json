@@ -32,6 +32,26 @@
       "sightMetres": 1500,
       "cost": 100,
       "attackDamage": 120
+    },
+    {
+      "id": "air_defence",
+      "name": "Air defence",
+      "domain": "ground",
+      "speedKmh": 60,
+      "cruiseAltitudeMetres": 0,
+      "hitPoints": 150,
+      "sightMetres": 10000,
+      "cost": 400,
+      "airDefence": {
+        "comment": "Times in ticks, 10 per real second.",
+        "rangeMetres": 6000,
+        "magazine": 6,
+        "reloadTicks": 15,
+        "rearmTicks": 300,
+        "hitChancePercent": 75,
+        "missileSpeedKmh": 1800,
+        "missileDamage": 100
+      }
     }
   ]
 }
