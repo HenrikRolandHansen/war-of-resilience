@@ -40,7 +40,7 @@ public static class StartingForces
 	}
 
 	/// <summary>First dry spot of the country's own land around the capital, else the capital itself.</summary>
-	private static (Fixed X, Fixed Z) StagingPoint(Terrain terrain, Territory territory, City capital)
+	public static (Fixed X, Fixed Z) StagingPoint(Terrain terrain, Territory territory, City capital)
 	{
 		var directions = new[] { (0, 1), (-1, 0), (1, 0), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1) };
 		foreach (var (dx, dz) in directions)

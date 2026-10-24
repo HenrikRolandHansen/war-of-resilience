@@ -29,6 +29,9 @@ public sealed record UnitType
 
 	public int Cost { get; init; }
 
+	/// <summary>Ticks the factory needs to build one.</summary>
+	public int BuildTicks { get; init; }
+
 	/// <summary>Damage done when a kamikaze unit hits its target (it is destroyed doing so). 0 = cannot attack.</summary>
 	public int AttackDamage { get; init; }
 

@@ -1,5 +1,5 @@
 {
-  "comment": "Unit types. Speeds are real-world km/h; timeScale is how many game seconds pass per real second, so units cross the 1200 km map in minutes rather than hours.",
+  "comment": "Unit types. Speeds are real-world km/h; timeScale is how many game seconds pass per real second, so units cross the 1200 km map in minutes rather than hours. cost is in credits, buildSeconds is real time in the factory.",
   "timeScale": 20,
   "units": [
     {
@@ -10,7 +10,8 @@
       "cruiseAltitudeMetres": 0,
       "hitPoints": 100,
       "sightMetres": 3000,
-      "cost": 200
+      "cost": 800,
+      "buildSeconds": 15
     },
     {
       "id": "recon_drone",
@@ -20,7 +21,8 @@
       "cruiseAltitudeMetres": 400,
       "hitPoints": 30,
       "sightMetres": 8000,
-      "cost": 150
+      "cost": 1500,
+      "buildSeconds": 20
     },
     {
       "id": "kamikaze_drone",
@@ -30,7 +32,8 @@
       "cruiseAltitudeMetres": 150,
       "hitPoints": 20,
       "sightMetres": 1500,
-      "cost": 100,
+      "cost": 1200,
+      "buildSeconds": 15,
       "attackDamage": 120
     },
     {
@@ -41,7 +44,8 @@
       "cruiseAltitudeMetres": 0,
       "hitPoints": 150,
       "sightMetres": 10000,
-      "cost": 400,
+      "cost": 5000,
+      "buildSeconds": 45,
       "airDefence": {
         "comment": "Times in ticks, 10 per real second.",
         "rangeMetres": 6000,

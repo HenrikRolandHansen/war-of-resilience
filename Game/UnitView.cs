@@ -77,6 +77,14 @@ public partial class UnitView : Node3D
 			return;
 		}
 
+		// Units built during the game.
+		while (_visuals.Count < _units.Units.Count)
+		{
+			var unit = _units.Units[_visuals.Count];
+			AddVisual(unit);
+			_visuals[^1].Previous = SimPosition(unit);
+		}
+
 		float distance = _camera.Distance;
 		float markerSize = distance * MarkerScale;
 		bool showMarkers = distance > 1_500f;

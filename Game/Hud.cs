@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Godot;
@@ -42,8 +43,12 @@ public partial class Hud : CanvasLayer
 		panel.AddChild(_label);
 	}
 
-	public void Setup(Simulation simulation, WorldState world, PowerGrid grid)
+	private IReadOnlyCollection<int> _aiCountries = System.Array.Empty<int>();
+
+	/// <param name="aiCountries">Countries run by the computer, marked "(AI)".</param>
+	public void Setup(Simulation simulation, WorldState world, PowerGrid grid, IReadOnlyCollection<int>? aiCountries = null)
 	{
+		_aiCountries = aiCountries ?? System.Array.Empty<int>();
 		_simulation = simulation;
 		_world = world;
 		_grid = grid;
@@ -79,7 +84,8 @@ public partial class Hud : CanvasLayer
 			double morale = cities.Count == 0 ? 0 : cities.Average(c => c.Morale);
 			var power = _grid.PowerOf(country.Id);
 			int powered = power.DemandMW == 0 ? 100 : power.SuppliedMW * 100 / power.DemandMW;
-			text.Append($"\n{country.Name,-8}  {money,9:N0} cr   +{incomePerSecond:N0}/s   morale {morale:0}%   {cities.Count} cities");
+			string name = _aiCountries.Contains(country.Id) ? $"{country.Name} (AI)" : country.Name;
+			text.Append($"\n{name,-13}  {money,9:N0} cr   +{incomePerSecond:N0}/s   morale {morale:0}%   {cities.Count} cities");
 			text.Append($"\n          power {power.ProducedMW:N0} MW made, {power.DemandMW:N0} MW needed, {powered}% supplied");
 		}
 
